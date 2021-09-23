@@ -1,0 +1,18 @@
+function select
+
+object {
+    guid
+    name: "knife"
+    traits: {
+        sharp: 2,
+        size: 1,
+    }
+}
+
+main:
+    lay out all the verbs (narrow if typed) by desirability
+    choose one
+    lay out all the possible arguments
+    choose arguments
+    execute
+    process new state

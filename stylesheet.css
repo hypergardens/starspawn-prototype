@@ -1,0 +1,62 @@
+* {
+    font-family: Varela Round, Open Sans, sans-serif;
+    font-size: large;
+    /* box-sizing: border-box;
+    outline: 0;
+    scrollbar-color: var(--scroll-thumb) var(--scroll-track);
+    scrollbar-width: thin; */
+}
+
+.choice {
+    display: inline-block;
+    padding: .4em .5em;
+    margin: 2px 2px 2px 0;
+    font-size: 20px;
+    /* line-height: 1; */
+    text-align: center;
+    border-width: 1px;
+    border-style: solid;
+    border-radius: 3px;
+    cursor: pointer;
+    background-color: darkslategray;
+}
+
+.execute {
+    display: inline-block;
+    padding: .4em .5em;
+    margin: 2px 2px 2px 0;
+    font-size: 20px;
+    /* line-height: 1; */
+    text-align: center;
+    border-width: 1px;
+    border-style: solid;
+    border-radius: 3px;
+    cursor: pointer;
+    background-color: rgb(33, 107, 23);
+}
+
+.cancel {
+    display: inline-block;
+    padding: .4em .5em;
+    margin: 2px 2px 2px 0;
+    font-size: 20px;
+    /* line-height: 1; */
+    text-align: center;
+    border-width: 1px;
+    border-style: solid;
+    border-radius: 3px;
+    cursor: pointer;
+    background-color: rgb(85, 37, 23);
+}
+
+.execute:hover {
+    background-color: rgb(18, 160, 42);
+}
+
+.cancel:hover {
+    background-color: rgb(179, 55, 55);
+}
+
+.choice:hover {
+    background-color: dodgerblue;
+}
