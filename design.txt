@@ -9,10 +9,88 @@ object {
     }
 }
 
-main:
-    lay out all the verbs (narrow if typed) by desirability
-    choose one
-    lay out all the possible arguments
-    choose arguments
-    execute
-    process new state
+patterns.push({
+    verb: { text: "wait" },
+    durations: [{ text: "a bit", dur: 1 }, { text: "a while", dur: 5 }, { text: "a long time", dur: 9 }],
+    actions: function() {
+        let actions = [];
+        for (let duration of this.durations) {
+            actions.push({
+                representation: [this.verb, duration],
+                windup: 0,
+                winddown: duration.dur,
+                condition: function() {},
+                effect: function() {
+                    newLine(`You wait ${duration.text}`)
+                }
+            });
+        }
+        // return [];
+        return actions;
+    }
+});
+
+
+Command: [Word*]
+
+Pattern
+    verb: Word,
+    actions() => [Action*] 
+
+Action
+    windup: N
+    winddown: N 
+    representation: [Word*]
+    condition(): bool
+    effect(): procedure, signals
+
+Word < Entity
+    generic: false
+    text: "myName"
+
+
+design decisions
+    types
+        1) set of types[] for components composited into entity
+            1b) array of types[] for components composited into entity
+        2) bool flag for typeA, typeB, typeC
+        3) type: "string"
+
+core:
+    JSON objects and states
+    systemic behaviors
+    linear complexity, cubic depth
+
+must-have soon:
+    object tree
+        type: "objtype"
+        text: "Object"
+        parents: [[ID, "type"], [ID, "type"]]
+    signals
+        emitSignal
+        receiveSignal
+    behaviors
+        physicalObject
+        prototypes
+
+
+next steps:
+    visible object tree
+    area movement
+        one-way, two-way
+            A <---> B
+            A ----> B
+        access
+            A x ???    B
+            A x------> B
+            A ---x---> B
+            A ------x> B
+    Bootstrap UI
+    log items
+    on-mouse-over examine - hold mouse over to charge
+
+fancy:
+    D3 transitions
+
+document:
+    paper prototypes for narrative

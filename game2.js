@@ -1,3 +1,9 @@
+class Main {
+    constructor() {
+        this.id
+    }
+}
+
 let id = 0
 let things = []
 
@@ -430,17 +436,55 @@ patterns.push({
     }
 });
 
+class Area {
+    constructor() {
+        this.text = "prototype area";
+    }
+}
+
+class Teapot {
+    constructor() {
+        this.text = "teapot";
+        this.fluidContainer = true;
+        this.item = true;
+    }
+}
+
+class Knife {
+    constructor() {
+        this.text = "knife";
+        this.sharp = 3;
+        this.item = true;
+    }
+}
 // addThing({ text: "rose", inv: false, weight: 1, smell: "sweet" })
 // addThing({ text: "rose", inv: true, weight: 2, smell: "sugary" })
 // addThing({ text: "daisy", inv: false, weight: 1, smell: "daisylike" })
 // addThing({ text: "shrine", shrine: true })
 // addThing({ text: "crystal", inv: false, weight: 1 })
 // addThing({ text: "boulder", weight: 10 })
+let area = new Area()
 addThing({ text: "faucet", fluidSource: true, fluid: "water", temperature: 20 });
-addThing({ text: "teapot", fluidContainer: true, item: true });
+addThing(new Teapot());
 addThing({ text: "cup", fluidContainer: true, item: true });
 addThing({ text: "table", surface: true });
 addThing({ text: "stove", active: false, surface: true, heatSource: true });
+for (let thing of things) {
+    makeParent(thing, area);
+}
+
+addThing(area);
+
+
+function makeParent(parent, child) {
+    child.parent = parent.id
+}
+
+function isParent(parent, child) {
+    return (child.parent === parent.id)
+}
+
+let k = new Knife();
 
 let stoveBehaviour = {
     ctr: 0,
@@ -473,7 +517,7 @@ let stoveBehaviour = {
     }
 }
 
-let teaBehavour = {
+let teaBehaviour = {
     onTick: function() {
         for (let fluidContainer of things.filter(e => e.fluidContainer)) {
             for (let fluid of things.filter(e => (e.fluid && e.in === fluidContainer.id && e.temperature > 23))) {
@@ -542,7 +586,7 @@ function gameLoop() {
         if (tick()) {
             // newLine(`tick ${time} ends`);
             stoveBehaviour.onTick();
-            teaBehavour.onTick();
+            teaBehaviour.onTick();
             time++;
             // newLine(`tick ${time} begins`);
         }
