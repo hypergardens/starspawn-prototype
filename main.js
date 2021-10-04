@@ -134,7 +134,7 @@ class Player {
     }
 
 
-    //^ command, updateCommandUI()
+    // updateCommandUI()
     pickNextWord(optionI) {
         let options = this.getNextWords();
         // console.log(`picked ${options[optionI].text}`);
@@ -144,7 +144,7 @@ class Player {
     }
 
 
-    //^ getValidActions(), player, clearCommand()
+    // getValidActions(), player, clearCommand()
     // set intent and clear the command
     setIntent() {
         // get valid actions
