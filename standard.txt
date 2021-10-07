@@ -1,0 +1,29 @@
+1 bubble = 10 marbles
+
+entity
+    utils:
+        inSameContainerAs(other)
+
+physicalObject
+    bulk: int
+    unique: bool
+
+fluid
+
+
+container
+    fluidContainer: bool
+    capacity: int
+    open: bool
+
+    utils:
+        currentCapacity()
+        isFull()
+        totalBulk()
+        canFit(entity)
+        putItemInContainer(item, container)
+
+### signals
+
+interrupt
+    power: 0-20 (10)

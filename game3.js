@@ -34,6 +34,28 @@ class Core {
     }
 }
 
+class Word {
+    constructor(text) {
+        this.text = text;
+        this.type = "word";
+    }
+}
+
+class Words {
+    constructor() {
+        this.words = {}
+    }
+    get(text) {
+        if (!this.words[text]) {
+            let word = new Word(text);
+            this.words[text] = word;
+        }
+        return this.words[text];
+    }
+}
+
+let words = new Words();
+
 function isParent(parentEntity, child) {
     return child.parent === parentEntity.id;
 }
@@ -42,7 +64,7 @@ function setParent(parentEntity, child) {
     child.parent = parentEntity.id;
 }
 
-function unsetParent(parentEntity, child) {
+function unsetParent(child) {
     child.parent = null;
 }
 
@@ -232,14 +254,14 @@ function setOptions(player) {
         cancelNode.addEventListener("click", () => {
             player.command = [];
             setOptions(player);
+            updateCommandUI(player);
         });
     }
 }
 
 
 player.addPattern({
-    verb: { text: "fill" },
-    w_from: { text: "from" },
+    // fill container from fluidSource
     actions: function() {
         let actions = [];
         for (let fluidSource of core.entities.filter(e => e.fluidSource)) {
@@ -249,7 +271,7 @@ player.addPattern({
                 console.log("fluids", fluidsInContainer);
                 if (fluidsInContainer.length === 0)
                     actions.push({
-                        representation: [this.verb, container, this.w_from, fluidSource],
+                        representation: [words.get("fill"), container, words.get("from"), fluidSource],
                         windup: 0,
                         winddown: 0,
                         // condition: function() {
@@ -270,13 +292,13 @@ player.addPattern({
 });
 
 player.addPattern({
-    verb: { text: "empty" },
+    // empty container
     actions: function() {
         let actions = [];
         for (let container of core.entities.filter(e => e.fluidContainer)) {
             if (core.childrenOf(container).length !== 0) {
                 actions.push({
-                    representation: [this.verb, container],
+                    representation: [words.get("empty"), container],
                     windup: 1,
                     winddown: 1,
                     condition: function() {},
@@ -299,8 +321,6 @@ player.addPattern({
 });
 
 player.addPattern({
-    verb: { text: "pour" },
-    w_into: { text: "into" },
     actions: function() {
         let actions = [];
         let nonemptyContainer = (e => (e.fluidContainer && (core.childrenOf(e).length !== 0)))
@@ -308,7 +328,7 @@ player.addPattern({
         for (let sourceContainer of core.entities.filter(nonemptyContainer)) {
             for (let destinationContainer of core.entities.filter(emptyContainer)) {
                 actions.push({
-                    representation: [this.verb, sourceContainer, this.w_into, destinationContainer],
+                    representation: [words.get("pour"), sourceContainer, words.get("into"), destinationContainer],
                     windup: 0,
                     winddown: 0,
                     condition: function() {},
@@ -316,7 +336,6 @@ player.addPattern({
                         for (let entity of core.entities) {
                             if (isParent(sourceContainer, entity)) {
                                 newLine(`You pour the ${entity.text} from the ${sourceContainer.text} into the ${destinationContainer.text}.`);
-                                unsetParent(sourceContainer, entity);
                                 setParent(destinationContainer, entity);
                             }
                         }
@@ -329,14 +348,12 @@ player.addPattern({
 });
 
 player.addPattern({
-    verb: { text: "put" },
-    w_on: { text: "on" },
     actions: function() {
         let actions = [];
         for (let entity of core.entities.filter(e => e.item)) {
             for (let surface of core.entities.filter(e => e.surface)) {
                 actions.push({
-                    representation: [this.verb, entity, this.w_on, surface],
+                    representation: [words.get("put"), entity, words.get("on"), surface],
                     windup: 0,
                     winddown: 0,
                     condition: function() {},
@@ -354,12 +371,11 @@ player.addPattern({
 });
 
 player.addPattern({
-    verb: { text: "generic" },
     actions: function() {
         let actions = [];
         for (let entity of core.entities.filter(e => false)) {
             actions.push({
-                representation: [this.verb, entity],
+                representation: [words.get("generic"), entity],
                 windup: 0,
                 winddown: 0,
                 condition: function() {},
@@ -373,14 +389,12 @@ player.addPattern({
 
 
 player.addPattern({
-    verb: { text: "infuse" },
-    w_in: { text: "in" },
     actions: function() {
         let actions = [];
         for (let infusable of core.entities.filter(e => e.infusable)) {
             for (let fluidContainer of core.entities.filter(e => e.fluidContainer)) {
                 actions.push({
-                    representation: [this.verb, infusable, this.w_in, fluidContainer],
+                    representation: [words.get("put"), infusable, words.get("in"), fluidContainer],
                     windup: 0,
                     winddown: 0,
                     condition: function() {},
@@ -440,7 +454,7 @@ player.addPattern({
 
 player.addPattern({
     verb: { text: "wait" },
-    durations: [{ text: "a bit", dur: 1 }, { text: "a while", dur: 5 }, { text: "a long time", dur: 9 }],
+    durations: [{ text: "a bit", dur: 1 }, { text: "a while", dur: 5 }, { text: "a long time", dur: 10 }],
     actions: function() {
         let actions = [];
         for (let duration of this.durations) {
@@ -461,15 +475,13 @@ player.addPattern({
 
 
 player.addPattern({
-    verb: { text: "take" },
-    w_tea: { text: "mint teabag" },
     actions: function() {
         let actions = [];
         // let flavours = ["mint", "chamomile", "cranberry"];
         // for (let flavour of flavours) {
         // let teabag = { text: `${flavour} teabag`, item: true, flammable: true, infusable: true, flavour: flavour };
         actions.push({
-            representation: [this.verb, this.w_tea],
+            representation: [words.get("take"), words.get("mint teabag")],
             windup: 0,
             winddown: 0,
             condition: function() {},
@@ -483,6 +495,23 @@ player.addPattern({
         return actions;
     }
 });
+
+player.addPattern({
+    actions: function() {
+        let actions = [];
+        // TODO: if there is tea, drink the tea
+        actions.push({
+            representation: [words.get("Enjoy the lovely cup of tea")],
+            windup: 3,
+            winddown: 3,
+            condition: function() {},
+            effect: function() {
+                newLine("You sip the cup of tea peacefully.")
+            }
+        });
+        return actions;
+    }
+})
 
 class Area {
     constructor() {
@@ -518,23 +547,21 @@ class EventQueue {
 // core.addEntity({ text: "crystal", inv: false, weight: 1 })
 // core.addEntity({ text: "boulder", weight: 10 })
 let area = new Area()
-core.addEntity({ text: "faucet", fluidSource: true, fluid: "water", temperature: 20 });
-core.addEntity(new Teapot());
-core.addEntity({ text: "cup", fluidContainer: true, item: true });
-core.addEntity({ text: "table", surface: true });
-core.addEntity({ text: "stove", active: false, surface: true, heatSource: true });
 core.addEntity(area);
+core.addEntity({ text: "faucet", fluidSource: true, fluid: "water", temperature: 20 }, area);
+core.addEntity(new Teapot(), area);
+core.addEntity({ text: "cup", fluidContainer: true, item: true }, area);
+core.addEntity({ text: "table", surface: true }, area);
+core.addEntity({ text: "stove", active: false, surface: true, heatSource: true, ctr: 0 }, area);
+core.addEntity(new Knife, area);
 
-let k = new Knife();
-
-let stoveBehaviour = {
-    ctr: 0,
-    onTick: function() {
-        this.ctr++;
+let receivers = []
+receivers.push({
+    on_tick: function(data) {
         for (let stove of core.entities.filter(e => e.text === "stove")) {
             if (stove.active) {
-                if (this.ctr >= 10) {
-                    this.ctr = 0;
+                if (stove.ctr >= 10) {
+                    stove.ctr = 0;
                     newLine("The stove's flame burns a warm orange.")
                 }
                 for (let entityOnStove of core.entities.filter(e => (e.on === stove.id))) {
@@ -556,21 +583,49 @@ let stoveBehaviour = {
             }
         }
     }
-}
+});
 
-let teaBehaviour = {
-    onTick: function() {
+receivers.push({
+    on_tick: function(data) {
+        newLine("tea behaviour operational")
         for (let fluidContainer of core.entities.filter(e => e.fluidContainer)) {
-            for (let fluid of core.entities.filter(e => (e.fluid && e.in === fluidContainer.id && e.temperature > 23))) {
-                // hot fluid
-                if (core.entities.filter(e => (e.infusable && e.in === fluidContainer.id)).length > 0) {
-                    newLine(`Congratulations! You have made tea!`)
+            for (let hotFluid of core.entities.filter(e => (
+                    e.fluid &&
+                    isParent(fluidContainer, e) &&
+                    e.temperature > 23))) {
+                // if infusable in container and hot fluid
+                if (core.entities.filter(e => (
+                        e.infusable &&
+                        isParent(fluidContainer, e))).length > 0) {
+                    emitSignal("teaMade");
                 }
             }
         }
     }
-}
+})
 
+core.addEntity({
+    type: "winBehaviourState",
+    won: false,
+});
+
+receivers.push({
+    on_teaMade: function(data) {
+        let state = core.entities.filter(e => e.type === "winBehaviourState")[0];
+        if (state.won === false) {
+            newLine(`Congratulations, you have made tea`)
+            state.won = true;
+        }
+    }
+})
+
+
+function emitSignal(type, data) {
+    for (let receiver of receivers) {
+        if (receiver[`on_${type}`])
+            receiver[`on_${type}`](data);
+    }
+}
 
 updateCommandUI(player);
 
@@ -580,7 +635,14 @@ core.addEntity(player);
 let time = 0;
 // setOptions();
 
-function tick() {
+
+receivers.push({
+    on_tick: function(data) {
+
+    }
+})
+
+function playerTick() {
     // player: no intent
     if (player.intent === undefined) {
         // player: no intent, winddown --> reduce
@@ -618,10 +680,9 @@ function tick() {
 function gameLoop() {
     console.log(core.entities);
     setInterval(() => {
-        if (tick()) {
+        if (playerTick()) {
             // newLine(`tick ${time} ends`);
-            stoveBehaviour.onTick();
-            teaBehaviour.onTick();
+            emitSignal("tick", {})
             time++;
             // newLine(`tick ${time} begins`);
         }
