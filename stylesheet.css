@@ -7,6 +7,16 @@
     scrollbar-width: thin; */
 }
 
+#mainArea {
+    display: inline-block;
+    width: 30%;
+}
+
+#entityTree {
+    display: inline-block;
+    width: 60%;
+}
+
 .choice {
     display: inline-block;
     padding: .4em .5em;

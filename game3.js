@@ -21,10 +21,20 @@ class Core {
         return found;
     }
 
+    getDepth(id) {
+        let entity = this.getById(id);
+        let depth = 0;
+        while (entity.parent !== undefined) {
+            entity = this.getById(entity.parent);
+            depth += 1;
+        }
+        return depth;
+    }
+
     childrenOf(entity) {
         let contents = this.entities.filter(e => isParent(entity, e));
         // if (contents.length > 0) console.log(contents)
-        console.log("children of", entity.text, contents)
+        // console.log("children of", entity.text, contents)
         return contents;
     }
 
@@ -73,6 +83,7 @@ function unsetParent(child) {
 
 class Player {
     constructor(core) {
+        this.text = "player";
         this.core = core;
         this.intent = undefined; // action
         this.windup = 0;
@@ -340,7 +351,7 @@ player.addPattern({
             for (let surface of core.entities.filter(e => e.surface)) {
                 function effect() {
                     newLine(`You put the ${entity.text} on the ${surface.text}`);
-                    entity.on = surface.id;
+                    entity.parent = surface.id;
                     console.log(entity);
                 }
                 actions.push({
@@ -502,12 +513,17 @@ class EventQueue {
 // core.addEntity({ text: "boulder", weight: 10 })
 let area = new Area()
 core.addEntity(area);
+let table = { text: "table", surface: true }
+core.addEntity(table, area);
 core.addEntity({ text: "faucet", fluidSource: true, fluid: "water", temperature: 20 }, area);
 core.addEntity(new Teapot(), area);
-core.addEntity({ text: "cup", fluidContainer: true, item: true }, area);
-core.addEntity({ text: "table", surface: true }, area);
+core.addEntity({ text: "cup", fluidContainer: true, item: true }, table);
 core.addEntity({ text: "stove", active: false, surface: true, heatSource: true, ctr: 0 }, area);
 core.addEntity(new Knife, area);
+let chest = { text: "chest" }
+core.addEntity(chest, table);
+let smallerChest = { text: "smaller chest" };
+core.addEntity(smallerChest, chest);
 
 receivers.push({
     on_tick: function(data) {
@@ -560,6 +576,7 @@ receivers.push({
 
 core.addEntity({
     type: "winBehaviourState",
+    text: "winBehaviourState",
     won: false,
 });
 
@@ -575,6 +592,7 @@ receivers.push({
 
 
 core.addEntity({
+    text: "timer",
     type: "timer",
     time: 0
 })
@@ -597,12 +615,41 @@ function emitSignal(type, data) {
 
 updateCommandUI(player);
 
-core.addEntity(player);
+core.addEntity(player, area);
 
 emitSignal("playerTick", {});
 let time = 0;
 // setOptions();
 
+for (let entity of core.entities) {
+    console.log(entity.text, core.getDepth(entity.id))
+}
+
+
+function updateEntityTreeUI() {
+    let text = ""
+
+    function indentedSubtree(id, depth = 0) {
+        let entity = core.getById(id);
+        if (!entity.text) return "";
+        text = "|" + "----".repeat(core.getDepth(entity.id)) + entity.text + "\n";
+        for (let child of core.childrenOf(entity)) {
+            text += indentedSubtree(child.id, depth + 1);
+        }
+        return text;
+    }
+
+    for (let entity of core.entities.filter(e => core.getDepth(e.id) === 0)) {
+        text += indentedSubtree(entity.id, 0);
+    }
+    document.getElementById("entityTree").innerText = text;
+}
+setInterval(() => {
+    updateEntityTreeUI();
+}, 500);
+
+console.log("top")
+console.log(core.entities.filter(e => core.getDepth(e.id) === 0))
 player.addPattern({
     actions: function() {
         let actions = [];
