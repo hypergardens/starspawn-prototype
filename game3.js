@@ -659,7 +659,7 @@ player
     queue: [4, clap, 1, clap, clap, 1, clap, 2]
     intent: {action}
 */
-/// 
+/// debug test
 function debug(text) {
     document.getElementById("debug").innerText = text;
 }
