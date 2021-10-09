@@ -27,3 +27,23 @@ container
 
 interrupt
     power: 0-20 (10)
+
+
+### action
+
+player.addPattern({
+    actions: function() {
+        let actions = [];
+        // the effect function
+        function clap() {
+            newLine("CLAP!")
+        }
+        // the queue
+        actions.push({
+            representation: [words.get("slow clap.")],
+            queue: [4, clap, 2, clap, clap, 1, clap, clap, clap],
+            condition: function() {},
+        })
+        return actions;
+    }
+})

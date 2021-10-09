@@ -12,13 +12,13 @@ class Core {
     }
 
     getById(id) {
-        let found = false;
+        let found = undefined;
         for (let i = 0; i < this.entities.length; i++) {
             if (this.entities[i].id === id) {
                 found = this.entities[i];
             }
         }
-        if (found === false) throw `object not found with id ${id}`;
+        if (found === undefined) throw `object not found with id ${id}`;
         return found;
     }
 
@@ -250,241 +250,205 @@ function setOptions(player) {
 }
 
 
-// player.addPattern({
-//     // fill container from fluidSource
-//     actions: function() {
-//         let actions = [];
-//         for (let fluidSource of core.entities.filter(e => e.fluidSource)) {
-//             for (let container of core.entities.filter(e => e.fluidContainer)) {
-//                 // check the container is empty, no fluids in container
-//                 let fluidsInContainer = core.entities.filter(e => e.fluid && isParent(container, e));
-//                 console.log("fluids", fluidsInContainer);
-//                 if (fluidsInContainer.length === 0)
-//                     actions.push({
-//                         representation: [words.get("fill"), container, words.get("from"), fluidSource],
-//                         windup: 0,
-//                         winddown: 0,
-//                         // condition: function() {
-//                         //     return core.getById(fluidSource.id) && core.getById(container.id);
-//                         // },
-//                         effect: function() {
-//                             let fluid = { text: fluidSource.fluid, fluid: true, temperature: fluidSource.temperature }
-//                             newLine(`You fill up the ${container.text} from the ${fluidSource.text} with ${fluid.text}`)
-//                             core.addEntity(fluid);
-//                             setParent(container, fluid);
-//                         }
-//                     });
-//                 // throw "HALT"
-//             }
-//         }
-//         return actions;
-//     }
-// });
+player.addPattern({
+    // fill container from fluidSource
+    actions: function() {
+        let actions = [];
+        for (let fluidSource of core.entities.filter(e => e.fluidSource)) {
+            for (let container of core.entities.filter(e => e.fluidContainer)) {
+                // check the container is empty, no fluids in container
+                let fluidsInContainer = core.entities.filter(e => e.fluid && isParent(container, e));
+                // console.log("fluids", fluidsInContainer);
+                if (fluidsInContainer.length === 0) {
+                    function effect() {
+                        let fluid = { text: fluidSource.fluid, fluid: true, temperature: fluidSource.temperature }
+                        newLine(`You fill up the ${container.text} from the ${fluidSource.text} with ${fluid.text}`)
+                        core.addEntity(fluid);
+                        setParent(container, fluid);
+                    }
+                    actions.push({
+                        representation: [words.get("fill"), container, words.get("from"), fluidSource],
+                        queue: [2, effect, 3],
+                        // condition: function() {
+                        //     return core.getById(fluidSource.id) && core.getById(container.id);
+                        // },
+                    });
+                }
+                // throw "HALT"
+            }
+        }
+        return actions;
+    }
+});
 
-// player.addPattern({
-//     // empty container
-//     actions: function() {
-//         let actions = [];
-//         for (let container of core.entities.filter(e => e.fluidContainer)) {
-//             if (core.childrenOf(container).length !== 0) {
-//                 actions.push({
-//                     representation: [words.get("empty"), container],
-//                     windup: 1,
-//                     winddown: 1,
-//                     condition: function() {},
-//                     effect: function() {
-//                         newLine(`You empty the ${container.text}.`);
-//                         for (let entity of core.entities) {
-//                             if (isParent(container, entity)) {
-//                                 console.log("deleting", entity);
-//                                 console.log("all entities")
-//                                 console.log(core.entities);
-//                                 core.deleteById(entity.id);
-//                             }
-//                         }
-//                     }
-//                 });
-//             }
-//         }
-//         return actions;
-//     }
-// });
+player.addPattern({
+    // empty container
+    actions: function() {
+        let actions = [];
+        for (let container of core.entities.filter(e => e.fluidContainer)) {
+            if (core.childrenOf(container).length !== 0) {
+                function effect() {
+                    newLine(`You empty the ${container.text}.`);
+                    for (let entity of core.entities) {
+                        if (isParent(container, entity)) {
+                            console.log("deleting", entity);
+                            console.log("all entities")
+                            console.log(core.entities);
+                            core.deleteById(entity.id);
+                        }
+                    }
+                }
+                actions.push({
+                    representation: [words.get("empty"), container],
+                    queue: [1, effect, 1],
+                });
+            }
+        }
+        return actions;
+    }
+});
 
-// player.addPattern({
-//     actions: function() {
-//         let actions = [];
-//         let nonemptyContainer = (e => (e.fluidContainer && (core.childrenOf(e).length !== 0)))
-//         let emptyContainer = (e => (e.fluidContainer && (core.childrenOf(e).length === 0)))
-//         for (let sourceContainer of core.entities.filter(nonemptyContainer)) {
-//             for (let destinationContainer of core.entities.filter(emptyContainer)) {
-//                 actions.push({
-//                     representation: [words.get("pour"), sourceContainer, words.get("into"), destinationContainer],
-//                     windup: 0,
-//                     winddown: 0,
-//                     condition: function() {},
-//                     effect: function() {
-//                         for (let entity of core.entities) {
-//                             if (isParent(sourceContainer, entity)) {
-//                                 newLine(`You pour the ${entity.text} from the ${sourceContainer.text} into the ${destinationContainer.text}.`);
-//                                 setParent(destinationContainer, entity);
-//                             }
-//                         }
-//                     }
-//                 });
-//             }
-//         }
-//         return actions;
-//     }
-// });
+player.addPattern({
+    // pour X into Y
+    actions: function() {
+        let actions = [];
+        let nonemptyContainer = (e => (e.fluidContainer && (core.childrenOf(e).length !== 0)))
+        let emptyContainer = (e => (e.fluidContainer && (core.childrenOf(e).length === 0)))
+        for (let sourceContainer of core.entities.filter(nonemptyContainer)) {
+            for (let destinationContainer of core.entities.filter(emptyContainer)) {
+                function effect() {
+                    for (let entity of core.entities) {
+                        if (isParent(sourceContainer, entity)) {
+                            newLine(`You pour the ${entity.text} from the ${sourceContainer.text} into the ${destinationContainer.text}.`);
+                            setParent(destinationContainer, entity);
+                        }
+                    }
+                }
+                actions.push({
+                    representation: [words.get("pour"), sourceContainer, words.get("into"), destinationContainer],
+                    queue: [1, effect, 1]
+                });
+            }
+        }
+        return actions;
+    }
+});
 
-// player.addPattern({
-//     actions: function() {
-//         let actions = [];
-//         for (let entity of core.entities.filter(e => e.item)) {
-//             for (let surface of core.entities.filter(e => e.surface)) {
-//                 actions.push({
-//                     representation: [words.get("put"), entity, words.get("on"), surface],
-//                     windup: 0,
-//                     winddown: 0,
-//                     condition: function() {},
-//                     effect: function() {
-//                         newLine(`You put the ${entity.text} on the ${surface.text}`);
-//                         entity.on = surface.id;
-//                         console.log(entity);
-//                     }
-//                 });
-//             }
-//         }
-//         // return [];
-//         return actions;
-//     }
-// });
-
-// player.addPattern({
-//     actions: function() {
-//         let actions = [];
-//         for (let entity of core.entities.filter(e => false)) {
-//             actions.push({
-//                 representation: [words.get("generic"), entity],
-//                 windup: 0,
-//                 winddown: 0,
-//                 condition: function() {},
-//                 effect: function() {}
-//             });
-//         }
-//         // return [];
-//         return actions;
-//     }
-// });
+player.addPattern({
+    actions: function() {
+        let actions = [];
+        for (let entity of core.entities.filter(e => e.item)) {
+            for (let surface of core.entities.filter(e => e.surface)) {
+                function effect() {
+                    newLine(`You put the ${entity.text} on the ${surface.text}`);
+                    entity.on = surface.id;
+                    console.log(entity);
+                }
+                actions.push({
+                    representation: [words.get("put"), entity, words.get("on"), surface],
+                    queue: [1, effect],
+                });
+            }
+        }
+        return actions;
+    }
+});
 
 
-// player.addPattern({
-//     actions: function() {
-//         let actions = [];
-//         for (let infusable of core.entities.filter(e => e.infusable)) {
-//             for (let fluidContainer of core.entities.filter(e => e.fluidContainer)) {
-//                 actions.push({
-//                     representation: [words.get("put"), infusable, words.get("in"), fluidContainer],
-//                     windup: 0,
-//                     winddown: 0,
-//                     condition: function() {},
-//                     effect: function() {
-//                         newLine(`You put the ${infusable.text} in the ${fluidContainer.text} for infusing`);
-//                         setParent(fluidContainer, infusable);
-//                     }
-//                 });
-//             }
-//         }
-//         // return [];
-//         return actions;
-//     }
-// });
+player.addPattern({
+    actions: function() {
+        let actions = [];
+        for (let infusable of core.entities.filter(e => e.infusable)) {
+            for (let fluidContainer of core.entities.filter(e => e.fluidContainer)) {
+                function effect() {
+                    newLine(`You put the ${infusable.text} in the ${fluidContainer.text} for infusing`);
+                    setParent(fluidContainer, infusable);
+                }
+                actions.push({
+                    representation: [words.get("put"), infusable, words.get("in"), fluidContainer],
+                    queue: [1, effect, 1]
+                });
+            }
+        }
+        // return [];
+        return actions;
+    }
+});
 
-// player.addPattern({
-//     verb: { text: "turn on" },
-//     actions: function() {
-//         let actions = [];
-//         for (let entity of core.entities.filter(e => e.active !== undefined && e.active === false)) {
-//             actions.push({
-//                 representation: [this.verb, entity],
-//                 windup: 0,
-//                 winddown: 0,
-//                 condition: function() {},
-//                 effect: function() {
-//                     entity.active = true;
-//                     newLine(`You turn on the ${entity.text}`)
-//                 },
-//             });
-//         }
-//         // return [];
-//         return actions;
-//     }
-// });
+player.addPattern({
+    verb: { text: "turn on" },
+    actions: function() {
+        let actions = [];
+        for (let entity of core.entities.filter(e => e.active !== undefined && e.active === false)) {
+            function effect() {
+                entity.active = true;
+                newLine(`You turn on the ${entity.text}`)
+            }
+            actions.push({
+                representation: [this.verb, entity],
+                queue: [effect]
+            });
+        }
+        return actions;
+    }
+});
 
-// player.addPattern({
-//     verb: { text: "turn off" },
-//     actions: function() {
-//         let actions = [];
-//         for (let entity of core.entities.filter(e => e.active !== undefined && e.active === true)) {
-//             actions.push({
-//                 representation: [this.verb, entity],
-//                 windup: 0,
-//                 winddown: 0,
-//                 condition: function() {},
-//                 effect: function() {
-//                     entity.active = false;
-//                     newLine(`You turn off the ${entity.text}`)
-//                 },
-//             });
-//         }
-//         // return [];
-//         return actions;
-//     }
-// });
+player.addPattern({
+    verb: { text: "turn off" },
+    actions: function() {
+        let actions = [];
+        for (let entity of core.entities.filter(e => e.active !== undefined && e.active === true)) {
+            function effect() {
+                entity.active = false;
+                newLine(`You turn off the ${entity.text}`)
+            }
+            actions.push({
+                representation: [this.verb, entity],
+                queue: [effect],
+            });
+        }
+        // return [];
+        return actions;
+    }
+});
 
-// player.addPattern({
-//     verb: { text: "wait" },
-//     durations: [{ text: "a bit", dur: 1 }, { text: "a while", dur: 5 }, { text: "a long time", dur: 10 }],
-//     actions: function() {
-//         let actions = [];
-//         for (let duration of this.durations) {
-//             actions.push({
-//                 representation: [this.verb, duration],
-//                 windup: 0,
-//                 winddown: duration.dur,
-//                 condition: function() {},
-//                 effect: function() {
-//                     newLine(`You wait ${duration.text}`)
-//                 }
-//             });
-//         }
-//         // return [];
-//         return actions;
-//     }
-// });
+player.addPattern({
+    durations: [{ text: "a bit", dur: 1 }, { text: "a while", dur: 5 }, { text: "a long time", dur: 10 }],
+    actions: function() {
+        let actions = [];
+        for (let duration of this.durations) {
+            function effect() {
+                newLine(`You wait ${duration.text}`)
+            }
+            actions.push({
+                representation: [words.get("wait"), words.get(duration.text)],
+                queue: [effect, duration.dur]
+            });
+        }
+        return actions;
+    }
+});
 
 
-// player.addPattern({
-//     actions: function() {
-//         let actions = [];
-//         // let flavours = ["mint", "chamomile", "cranberry"];
-//         // for (let flavour of flavours) {
-//         // let teabag = { text: `${flavour} teabag`, item: true, flammable: true, infusable: true, flavour: flavour };
-//         actions.push({
-//             representation: [words.get("take"), words.get("mint teabag")],
-//             windup: 0,
-//             winddown: 0,
-//             condition: function() {},
-//             effect: function() {
-//                 core.addEntity({ text: `mint teabag`, item: true, flammable: true, infusable: true, flavour: "mint" });
-//                 newLine(`You grab a mint teabag.`);
-//             }
-//         });
-//         // }
-//         // return [];
-//         return actions;
-//     }
-// });
+player.addPattern({
+    actions: function() {
+        let actions = [];
+        let flavours = ["mint", "chamomile", "cranberry"];
+        for (let flavour of flavours) {
+            let teabag = { text: `${flavour} teabag`, item: true, flammable: true, infusable: true, flavour: flavour };
+
+            function effect() {
+                core.addEntity(teabag);
+                newLine(`You grab a ${flavour} teabag`);
+            }
+            actions.push({
+                representation: [words.get("take"), words.get(`${flavour} teabag`)],
+                queue: [2, effect]
+            });
+        }
+        return actions;
+    }
+});
 
 // player.addPattern({
 //     actions: function() {
@@ -583,9 +547,11 @@ receivers.push({
                     isParent(fluidContainer, e) &&
                     e.temperature > 23))) {
                 // if infusable in container and hot fluid
-                if (core.entities.filter(e => (
+                for (infusingTeabag of core.entities.filter(e => (
                         e.infusable &&
-                        isParent(fluidContainer, e))).length > 0) {
+                        isParent(fluidContainer, e)))) {
+                    hotFluid.text = `${infusingTeabag.flavour} tea`;
+                    console.log("hotFluid", hotFluid);
                     emitSignal("teaMade");
                 }
             }
@@ -647,8 +613,8 @@ player.addPattern({
         }
         // the queue
         actions.push({
-            representation: [words.get("Clap chaotically.")],
-            queue: [4, clap, 1, clap, clap, 2, clap],
+            representation: [words.get("slow clap.")],
+            queue: [4, clap, 2, clap, clap, 1, clap, clap, clap],
             condition: function() {},
         })
         return actions;
@@ -660,16 +626,17 @@ player
     queue: [4, clap, 1, clap, clap, 1, clap, 2]
     intent: {action}
 */
-/// 
+/// debug test
 function debug(text) {
     document.getElementById("debug").innerText = text;
 }
 
+// player tick manager
 receivers.push({
     on_tick: function(data) {
         setTimeout(() => {
             emitSignal("playerTick");
-        }, 300);
+        }, 50);
     },
     on_playerTick: function(data) {
         // player: no effect, wind-up, or wind-down
@@ -681,7 +648,7 @@ receivers.push({
         } else {
             let queue = player.intent.queue;
             console.log("in queue");
-            // waiting time
+            // waiting time, tick everything else
             if (typeof queue[0] === "number" && queue[0] > 0) {
                 queue[0] -= 1;
                 if (queue[0] <= 0) {
@@ -689,15 +656,12 @@ receivers.push({
                 }
                 emitSignal("tick", {});
             } else if (typeof queue[0] === "function") {
-                // execute effect
+                // execute effect, another player tick afterwards
                 queue[0]();
                 queue.splice(0, 1);
-                // setTimeout(() => {
-                //     emitSignal("playerTick")
-                // }, 1000);
                 setTimeout(() => {
                     emitSignal("playerTick");
-                }, 300);
+                }, 50);
             }
             if (queue.length === 0) {
                 player.intent = undefined;
@@ -709,37 +673,6 @@ receivers.push({
 
 
 emitSignal("playerTick", {});
-
-// function gameLoop() {
-//     console.log("core.entities")
-//     console.log(core.entities);
-//     setInterval(() => {
-//         if (player.intent === undefined) {
-//             // newLine(`tick ${time} ends`);
-//             time++;
-//             console.log("queue");
-//             console.log(player.intent);
-//             // newLine(`tick ${time} begins`);
-//         }
-//     }, 300)
-// }
-// gameLoop();
-// console.log('player.command:', player.command)
-// console.log('options:', getNextWords())
-
-// pickNextWord(0)
-// console.log('player.command:', player.command)
-// console.log('options:', getNextWords())
-
-// pickNextWord(2)
-// console.log('player.command:', player.command)
-// console.log('options:', getNextWords())
-
-// pickNextWord(0)
-// console.log('player.command:', player.command)
-// console.log('options:', getNextWords())
-
-// setIntent();
 
 
 function newLine(text) {
