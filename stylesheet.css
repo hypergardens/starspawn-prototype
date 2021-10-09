@@ -9,12 +9,12 @@
 
 #mainArea {
     display: inline-block;
-    width: 30%;
+    width: 50%;
 }
 
 #entityTree {
     display: inline-block;
-    width: 60%;
+    width: 40%;
 }
 
 .choice {
