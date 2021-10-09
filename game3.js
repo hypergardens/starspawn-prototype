@@ -533,7 +533,7 @@ receivers.push({
                     stove.ctr = 0;
                     newLine("The stove's flame burns a warm orange.")
                 }
-                for (let entityOnStove of core.entities.filter(e => (e.on === stove.id))) {
+                for (let entityOnStove of core.entities.filter(e => (e.parent === stove.id))) {
                     newLine(`The stove heats up the ${entityOnStove.text}`)
                     if (entityOnStove.fluidContainer) {
                         for (let fluid of core.entities.filter(e => (e.fluid && isParent(entityOnStove, e)))) {
