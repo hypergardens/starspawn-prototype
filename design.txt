@@ -1,35 +1,4 @@
-function select
-
-object {
-    guid
-    name: "knife"
-    traits: {
-        sharp: 2,
-        size: 1,
-    }
-}
-
-patterns.push({
-    verb: { text: "wait" },
-    durations: [{ text: "a bit", dur: 1 }, { text: "a while", dur: 5 }, { text: "a long time", dur: 9 }],
-    actions: function() {
-        let actions = [];
-        for (let duration of this.durations) {
-            actions.push({
-                representation: [this.verb, duration],
-                windup: 0,
-                winddown: duration.dur,
-                condition: function() {},
-                effect: function() {
-                    newLine(`You wait ${duration.text}`)
-                }
-            });
-        }
-        // return [];
-        return actions;
-    }
-});
-
+next: event queueing
 
 Command: [Word*]
 
