@@ -43,6 +43,13 @@ class Core {
         // TODO? throw if not found
         this.entities = this.entities.filter(e => e.id !== id);
     }
+
+    isAccessible(entity) {
+        if (entity === undefined || entity.parent === undefined) return true;
+        let parent = this.getById(entity.parent);
+        let accessible = !parent.closed && !parent.locked;
+        return accessible && this.isAccessible(parent);
+    }
 }
 
 class Word {
@@ -348,7 +355,7 @@ player.addPattern({
 player.addPattern({
     actions: function() {
         let actions = [];
-        for (let entity of core.entities.filter(e => e.item)) {
+        for (let entity of core.entities.filter(e => e.item && core.isAccessible(e))) {
             for (let surface of core.entities.filter(e => e.surface)) {
                 function effect() {
                     newLine(`You put the ${entity.text} on the ${surface.text}`);
@@ -369,7 +376,7 @@ player.addPattern({
 player.addPattern({
     actions: function() {
         let actions = [];
-        for (let infusable of core.entities.filter(e => e.infusable)) {
+        for (let infusable of core.entities.filter(e => e.infusable && core.isAccessible(e))) {
             for (let fluidContainer of core.entities.filter(e => e.fluidContainer)) {
                 function effect() {
                     newLine(`You put the ${infusable.text} in the ${fluidContainer.text} for infusing`);
@@ -521,10 +528,14 @@ core.addEntity(new Teapot(), area);
 core.addEntity({ text: "cup", fluidContainer: true, item: true }, table);
 core.addEntity({ text: "stove", active: false, surface: true, heatSource: true, ctr: 0 }, area);
 core.addEntity(new Knife, area);
-let chest = { text: "chest" }
+let chest = { text: "chest", closed: true, locked: true, lockedContainer: { password: `615` } };
 core.addEntity(chest, table);
-let smallerChest = { text: "smaller chest" };
+let smallerChest = { text: "smaller chest", closed: true };
 core.addEntity(smallerChest, chest);
+
+core.addEntity({ text: `MAGICAL teabag`, item: true, flammable: true, infusable: true, flavour: "MAGICAL" }, smallerChest);
+core.addEntity({ text: `FABULOUS teabag`, item: true, flammable: true, infusable: true, flavour: "FABULOUS" }, smallerChest);
+
 
 receivers.push({
     on_tick: function(data) {
@@ -535,12 +546,12 @@ receivers.push({
                     newLine("The stove's flame burns a warm orange.")
                 }
                 for (let entityOnStove of core.entities.filter(e => (e.parent === stove.id))) {
-                    newLine(`The stove heats up the ${entityOnStove.text}`)
+                    // newLine(`The stove heats up the ${entityOnStove.text}`)
                     if (entityOnStove.fluidContainer) {
                         for (let fluid of core.entities.filter(e => (e.fluid && isParent(entityOnStove, e)))) {
                             newLine(`The stove heats up the ${fluid.text} in the ${entityOnStove.text}`);
                             fluid.temperature += 1;
-                            if (fluid.temperature > 23) {
+                            if (fluid.temperature == 23) {
                                 newLine(`The ${entityOnStove.text} is filled with hot ${fluid.text}!`)
                             }
                         }
@@ -634,7 +645,7 @@ function updateEntityTreeUI() {
         let entity = core.getById(id);
         if (!entity.text) return "";
         text = "|" + "----".repeat(core.getDepth(entity.id)) + entity.text + "\n";
-        for (let child of core.childrenOf(entity)) {
+        for (let child of core.childrenOf(entity).filter(e => core.isAccessible(e))) {
             text += indentedSubtree(child.id, depth + 1);
         }
         return text;
@@ -649,58 +660,67 @@ setInterval(() => {
     updateEntityTreeUI();
 }, 500);
 
-console.log("top")
-console.log(core.entities.filter(e => core.getDepth(e.id) === 0))
+// console.log("top")
+// console.log(core.entities.filter(e => core.getDepth(e.id) === 0))
+// player.addPattern({
+//     actions: function() {
+//         let actions = [];
+//         // the effect function
+//         function clap() {
+//             newLine("CLAP!")
+//         }
+//         // the queue
+//         actions.push({
+//             representation: [words.get("slow clap.")],
+//             queue: [4, clap, 2, clap, clap, 1, clap, clap, clap],
+//             condition: function() {},
+//         })
+//         return actions;
+//     }
+// })
+
+
+// console.log(core.entities.filter(e => core.getDepth(e.id) === 0))
+// player.addPattern({
+//     actions: function() {
+//         let actions = [];
+//         // the effect function
+//         function pop() {
+//             newLine("POP!")
+//         }
+//         // the queue
+//         actions.push({
+//             representation: [words.get("pop.")],
+//             queue: [pop, pop, pop],
+//             condition: function() {},
+//         })
+//         return actions;
+//     }
+// })
+
+
 player.addPattern({
     actions: function() {
         let actions = [];
-        // the effect function
-        function clap() {
-            newLine("CLAP!")
-        }
-        // the queue
-        actions.push({
-            representation: [words.get("slow clap.")],
-            queue: [4, clap, 2, clap, clap, 1, clap, clap, clap],
-            condition: function() {},
-        })
-        return actions;
-    }
-})
-
-
-console.log(core.entities.filter(e => core.getDepth(e.id) === 0))
-player.addPattern({
-    actions: function() {
-        let actions = [];
-        // the effect function
-        function pop() {
-            newLine("POP!")
-        }
-        // the queue
-        actions.push({
-            representation: [words.get("pop.")],
-            queue: [pop, pop, pop],
-            condition: function() {},
-        })
-        return actions;
-    }
-})
-
-
-player.addPattern({
-    actions: function() {
-        let actions = [];
-        for (let i0 = 0; i0 < 10; i0++) {
-            for (let i1 = 0; i1 < 10; i1++) {
-                for (let i2 = 0; i2 < 10; i2++) {
-
-                    // the queue
-                    actions.push({
-                        representation: [words.get(`blaze it`), words.get(String(i0)), words.get(String(i1)), words.get(String(i2))],
-                        queue: [() => newLine(i0 === 4 && i1 === 2 && i2 === 0 ? "correct" : "wrong")],
-                        condition: function() {},
-                    })
+        for (let entity of core.entities.filter(e => e.lockedContainer && e.locked && core.isAccessible(e))) {
+            for (let i0 = 0; i0 < 10; i0++) {
+                for (let i1 = 0; i1 < 10; i1++) {
+                    for (let i2 = 0; i2 < 10; i2++) {
+                        // the queue
+                        function tryPassword() {
+                            if (`${i0}${i1}${i2}` === entity.lockedContainer.password) {
+                                entity.locked = false;
+                                newLine("The locks click open.")
+                            } else {
+                                newLine("Incorrect.")
+                            }
+                        }
+                        actions.push({
+                            representation: [words.get(`unlock`), entity, words.get(String(i0)), words.get(String(i1)), words.get(String(i2))],
+                            queue: [tryPassword],
+                            condition: function() {},
+                        })
+                    }
                 }
             }
         }
@@ -708,6 +728,49 @@ player.addPattern({
     }
 });
 
+player.addPattern({
+    actions: function() {
+        let actions = [];
+        for (let entity of core.entities.filter(e => e.note)) {
+            // the queue
+            actions.push({
+                representation: [words.get(`read`), entity],
+                queue: [() => {
+                    newLine("You read the note...");
+                    newLine(entity.note.content)
+                }],
+                condition: function() {},
+            })
+        }
+        return actions;
+    }
+});
+
+player.addPattern({
+    actions: function() {
+        let actions = [];
+        for (let entity of core.entities.filter(e => e.closed && core.isAccessible(e))) {
+            function effect() {
+                if (entity.locked) {
+                    newLine(`The ${entity.text} seems to be locked...`)
+                } else {
+                    entity.closed = false;
+                    newLine(`You open the ${entity.text}`);
+                    newLine(`It contains ${core.childrenOf(entity).map(e => e.text).join(",")}`);
+                }
+            }
+            actions.push({
+                representation: [words.get(`open`), entity],
+                queue: [effect],
+                condition: function() {},
+            })
+        }
+        return actions;
+    }
+});
+
+let note = { text: "super secret note", note: { content: `It reads: "The password is 6 1 5"` } };
+core.addEntity(note, table);
 /*
 player
     queue: [4, clap, 1, clap, clap, 1, clap, 2]
@@ -721,7 +784,6 @@ function debug(text) {
 
 // player tick manager
 receivers.push({
-    on_tick: function(data) {},
     on_playerTick: function(data) {
         // player: no effect, wind-up, or wind-down
         if (player.intent === undefined) {
@@ -750,15 +812,28 @@ receivers.push({
             if (queue.length === 0) {
                 player.intent = undefined;
             }
-            // emitSignal("playerTick", {});
         }
     }
 })
 
-setInterval(() => {
-    emitSignal("playerTick", {});
-}, 1000 / 60);
 
+setInterval(() => {
+    emitSignal("playerTick", {})
+}, 1000 / 20);
+// core.ready = false;
+
+// function loop() {
+
+//     if (core.ready) {
+//         setTimeout(() => {
+//             loop()
+//         }, 1000 / 60);
+//     } else {
+
+//     }
+// }
+
+// loop()
 
 function newLine(text) {
     // var node = document.createElement("li"); // Create a <li> node
