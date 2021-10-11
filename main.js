@@ -668,23 +668,60 @@ player.addPattern({
     }
 })
 
+
+console.log(core.entities.filter(e => core.getDepth(e.id) === 0))
+player.addPattern({
+    actions: function() {
+        let actions = [];
+        // the effect function
+        function pop() {
+            newLine("POP!")
+        }
+        // the queue
+        actions.push({
+            representation: [words.get("pop.")],
+            queue: [pop, pop, pop],
+            condition: function() {},
+        })
+        return actions;
+    }
+})
+
+
+player.addPattern({
+    actions: function() {
+        let actions = [];
+        for (let i0 = 0; i0 < 10; i0++) {
+            for (let i1 = 0; i1 < 10; i1++) {
+                for (let i2 = 0; i2 < 10; i2++) {
+
+                    // the queue
+                    actions.push({
+                        representation: [words.get(`blaze it`), words.get(String(i0)), words.get(String(i1)), words.get(String(i2))],
+                        queue: [() => newLine(i0 === 4 && i1 === 2 && i2 === 0 ? "correct" : "wrong")],
+                        condition: function() {},
+                    })
+                }
+            }
+        }
+        return actions;
+    }
+});
+
 /*
 player
     queue: [4, clap, 1, clap, clap, 1, clap, 2]
     intent: {action}
 */
 /// debug test
+
 function debug(text) {
     document.getElementById("debug").innerText = text;
 }
 
 // player tick manager
 receivers.push({
-    on_tick: function(data) {
-        setTimeout(() => {
-            emitSignal("playerTick");
-        }, 50);
-    },
+    on_tick: function(data) {},
     on_playerTick: function(data) {
         // player: no effect, wind-up, or wind-down
         if (player.intent === undefined) {
@@ -696,20 +733,20 @@ receivers.push({
             let queue = player.intent.queue;
             console.log("in queue");
             // waiting time, tick everything else
+            while (typeof queue[0] === "function") {
+                // execute effect, another player tick afterwards
+                queue[0]();
+                queue.splice(0, 1);
+            }
+
             if (typeof queue[0] === "number" && queue[0] > 0) {
                 queue[0] -= 1;
                 if (queue[0] <= 0) {
                     queue.splice(0, 1);
                 }
                 emitSignal("tick", {});
-            } else if (typeof queue[0] === "function") {
-                // execute effect, another player tick afterwards
-                queue[0]();
-                queue.splice(0, 1);
-                setTimeout(() => {
-                    emitSignal("playerTick");
-                }, 50);
             }
+
             if (queue.length === 0) {
                 player.intent = undefined;
             }
@@ -718,8 +755,9 @@ receivers.push({
     }
 })
 
-
-emitSignal("playerTick", {});
+setInterval(() => {
+    emitSignal("playerTick", {});
+}, 1000 / 60);
 
 
 function newLine(text) {
