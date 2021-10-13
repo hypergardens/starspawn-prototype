@@ -329,17 +329,6 @@ let core = new Core()
 let player = new Player(core)
 
 
-//^ command, document
-function updateCommandUI(player) {
-    document.getElementById("command").innerHTML = ">" + player.command.map(e => e.baseName).join(" ");
-}
-
-
-// document
-function clearOptionsUI() {
-    document.getElementById('options').innerHTML = "";
-}
-
 // document
 // NextWord* -> HTML elements with events
 function setOptions(player) {
@@ -381,6 +370,9 @@ function setOptions(player) {
     }
 }
 
+////////////////////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////  Patterns   ////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 player.addPattern({
     // fill container from fluidSource
@@ -819,6 +811,11 @@ setInterval(() => {
     updateEntityTreeUI();
 }, 500);
 
+////////////////////////////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// DEBUG
+////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
 
 // player.addPattern({
 //     durations: [{ baseName: "a bit", dur: 1 }, { baseName: "a while", dur: 5 }, { baseName: "a long time", dur: 10 }],
@@ -861,7 +858,6 @@ function createWait(ticks) {
     }
 }
 
-console.log(core.entities.filter(e => core.getDepth(e) === 0))
 player.addPattern({
     intents: function() {
         let intents = [];
@@ -950,12 +946,6 @@ core.receivers.push({
 
 let note = { baseName: "super secret note", note: { content: `It reads: "The password is 6 1 5"` } };
 core.addEntity(note, table);
-/*
-player
-    sequence: [4, clap, 1, clap, clap, 1, clap, 2]
-    intent: {intent}
-*/
-/// debug test
 
 function debug(text) {
     document.getElementById("debug").innerText = text;
@@ -963,6 +953,7 @@ function debug(text) {
 
 core.getIntents();
 
+//^ document
 function newLine(text) {
     // var node = document.createElement("li"); // Create a <li> node
     // var textnode = document.createTextNode(text); // Create a text node
@@ -970,4 +961,16 @@ function newLine(text) {
     let display = document.getElementById('display')
     display.innerText += "\n" + text;
     display.scrollTop = display.scrollHeight;
+}
+
+
+//^ document
+function updateCommandUI(player) {
+    document.getElementById("command").innerHTML = ">" + player.command.map(e => e.baseName).join(" ");
+}
+
+
+//^ document
+function clearOptionsUI() {
+    document.getElementById('options').innerHTML = "";
 }
