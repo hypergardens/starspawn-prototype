@@ -3,7 +3,6 @@ next: event queueing
 Command: [Word*]
 
 
-
 Entity
     baseName: str 
 
@@ -11,25 +10,35 @@ Word < Entity
 
 Intent
     representation: [Entity*]
-    queue: [Action*]
+    sequence: [Action*]
+
+Actor
+    intent: null | Intent
+
+Pattern
+    intents() => [Intent*]
 
 Signal
     type: str
 
 Action
-    +- effect: int | Action*
-    +- wait: int
+    +- actor: id
+    +- effect: func*
+    +- duration: int
+    +- pause: int
     +- condition: func()
     +- signals: [Signal*]
 
-Pattern
-    actions() => [Action*] 
+Core
+    queue: [Action*]
 
 loop:
     1) getIntent() - hangs for input
         start ready
         for every actor, get intent.
-        if not ready, redo in 50ms
+            if duration
+                duration--
+        if not ready, redo in 100ms
     2) emitSignals() - instant
         start !ready
         while not ready
