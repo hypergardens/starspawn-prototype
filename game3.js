@@ -71,7 +71,6 @@ class Core {
             // empty intent
             if (entity.intent === null || (entity.intent && entity.intent.sequence.length === 0)) {
                 this.intentsReady = false;
-                console.log("entity with no intent:", entity);
                 // hang and reset for player input
                 if (entity.player) {
                     if (!entity.picking) {
@@ -96,10 +95,10 @@ class Core {
                     console.log(`queued up`, action);
 
                     // queue up actions including the first with duration
-                    if (action.duration <= 0 || action.duration === undefined) {
+                    if (action.duration <= 1 || action.duration === undefined) {
                         // instant action, keep queueing
                         sequence.splice(i, 1);
-                    } else if (action.duration > 0) {
+                    } else if (action.duration > 1) {
                         // action that will be taken multiple times
                         ticks = action.duration;
                         console.log(`action with ${ticks} duration`, action);
@@ -110,6 +109,8 @@ class Core {
                 }
             }
         }
+        // queue up a tick signal
+        this.queue.push({ signals: [{ type: "tick" }] });
         // when ready, propagate signals
         if (this.intentsReady) {
             this.propagateSignals();
@@ -760,20 +761,20 @@ core.addEntity({ baseName: `FABULOUS teabag`, item: true, flammable: true, infus
 // })
 
 
-// core.addEntity({
-//     baseName: "timer",
-//     type: "timer",
-//     time: 0
-// })
+core.addEntity({
+    baseName: "timer",
+    type: "timer",
+    time: 0
+})
 
-// core.receivers.push({
-//     on_tick: function(data) {
-//         for (let timer of core.entities.filter(e => e.type === "timer")) {
-//             timer.time += 1;
-//             newLine(`Time: ${timer.time}`);
-//         }
-//     }
-// })
+core.receivers.push({
+    on_tick: function(data) {
+        for (let timer of core.entities.filter(e => e.type === "timer")) {
+            timer.time += 1;
+            newLine(`Time: ${timer.time}`);
+        }
+    }
+})
 
 
 updateCommandUI(player);
@@ -883,15 +884,36 @@ player.addPattern({
             return {
                 effect: () => { newLine("zing!") },
                 condition: () => true,
-                pause: 500,
+                pause: 300,
                 signals: [{ type: "ping" }],
-                duration: 1,
+                duration: 2,
             }
         }
         // the sequence
         intents.push({
             representation: [words.get("zing.")],
             sequence: [action()],
+        })
+        return intents;
+    }
+})
+
+
+player.addPattern({
+    intents: function() {
+        let intents = [];
+        // the effect function
+        function action() {
+            return {
+                effect: () => newLine("Waited 5 ticks"),
+            }
+        }
+        // the sequence
+        intents.push({
+            representation: [words.get("wait 5 ticks")],
+            sequence: [
+                createWait(5), action()
+            ],
         })
         return intents;
     }
