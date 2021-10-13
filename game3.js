@@ -4,7 +4,6 @@ class Core {
         this.entities = [];
         this.intentsReady = true;
         this.signalsReady = true;
-        this.executeReady = true;
         this.queue = []; // [Action*]
         this.receivers = []; // {on_signalType:func()}
         this.time = 0;
@@ -405,156 +404,162 @@ player.addPattern({
     }
 });
 
-// player.addPattern({
-//     // empty container
-//     intents: function() {
-//         let intents = [];
-//         for (let container of core.entities.filter(e => e.fluidContainer)) {
-//             if (core.childrenOf(container).length !== 0) {
-//                 function effect() {
-//                     newLine(`You empty the ${container.baseName}.`);
-//                     for (let entity of core.entities) {
-//                         if (isParent(container, entity)) {
-//                             console.log("deleting", entity);
-//                             console.log("all entities")
-//                             console.log(core.entities);
-//                             core.deleteById(entity.id);
-//                         }
-//                     }
-//                 }
-//                 intents.push({
-//                     representation: [words.get("empty"), container],
-//                     sequence: [1, effect, 1],
-//                 });
-//             }
-//         }
-//         return intents;
-//     }
-// });
+player.addPattern({
+    // empty container
+    intents: function() {
+        let intents = [];
+        for (let container of core.entities.filter(e => e.fluidContainer)) {
+            if (core.childrenOf(container).length !== 0) {
+                function effect() {
+                    newLine(`You empty the ${container.baseName}.`);
+                    for (let entity of core.entities) {
+                        if (isParent(container, entity)) {
+                            console.log("deleting", entity);
+                            console.log("all entities")
+                            console.log(core.entities);
+                            core.deleteById(entity.id);
+                        }
+                    }
+                }
+                intents.push({
+                    representation: [words.get("empty"), container],
+                    sequence: [createWait(1), { effect }, createWait(1)],
+                });
+            }
+        }
+        return intents;
+    }
+});
 
-// player.addPattern({
-//     // pour X into Y
-//     intents: function() {
-//         let intents = [];
-//         let nonemptyContainer = (e => (e.fluidContainer && (core.childrenOf(e).length !== 0)))
-//         let emptyContainer = (e => (e.fluidContainer && (core.childrenOf(e).length === 0)))
-//         for (let sourceContainer of core.entities.filter(nonemptyContainer)) {
-//             for (let destinationContainer of core.entities.filter(emptyContainer)) {
-//                 function effect() {
-//                     for (let entity of core.entities) {
-//                         if (isParent(sourceContainer, entity)) {
-//                             newLine(`You pour the ${entity.baseName} from the ${sourceContainer.baseName} into the ${destinationContainer.baseName}.`);
-//                             setParent(destinationContainer, entity);
-//                         }
-//                     }
-//                 }
-//                 intents.push({
-//                     representation: [words.get("pour"), sourceContainer, words.get("into"), destinationContainer],
-//                     sequence: [1, effect, 1]
-//                 });
-//             }
-//         }
-//         return intents;
-//     }
-// });
+player.addPattern({
+    // pour X into Y
+    intents: function() {
+        let intents = [];
+        let nonemptyContainer = (e => (e.fluidContainer && (core.childrenOf(e).length !== 0)))
+        let emptyContainer = (e => (e.fluidContainer && (core.childrenOf(e).length === 0)))
+        for (let sourceContainer of core.entities.filter(nonemptyContainer)) {
+            for (let destinationContainer of core.entities.filter(emptyContainer)) {
+                function effect() {
+                    for (let entity of core.entities) {
+                        if (isParent(sourceContainer, entity)) {
+                            newLine(`You pour the ${entity.baseName} from the ${sourceContainer.baseName} into the ${destinationContainer.baseName}.`);
+                            setParent(destinationContainer, entity);
+                        }
+                    }
+                }
+                intents.push({
+                    representation: [words.get("pour"), sourceContainer, words.get("into"), destinationContainer],
+                    sequence: [{ effect }]
+                });
+            }
+        }
+        return intents;
+    }
+});
 
-// player.addPattern({
-//     intents: function() {
-//         let intents = [];
-//         for (let entity of core.entities.filter(e => e.item && core.isAccessible(e))) {
-//             for (let surface of core.entities.filter(e => e.surface)) {
-//                 function effect() {
-//                     newLine(`You put the ${entity.baseName} on the ${surface.baseName}`);
-//                     entity.parent = surface.id;
-//                     console.log(entity);
-//                 }
-//                 intents.push({
-//                     representation: [words.get("put"), entity, words.get("on"), surface],
-//                     sequence: [1, effect],
-//                 });
-//             }
-//         }
-//         return intents;
-//     }
-// });
-
-
-// player.addPattern({
-//     intents: function() {
-//         let intents = [];
-//         for (let infusable of core.entities.filter(e => e.infusable && core.isAccessible(e))) {
-//             for (let fluidContainer of core.entities.filter(e => e.fluidContainer)) {
-//                 function effect() {
-//                     newLine(`You put the ${infusable.baseName} in the ${fluidContainer.baseName} for infusing`);
-//                     setParent(fluidContainer, infusable);
-//                 }
-//                 intents.push({
-//                     representation: [words.get("put"), infusable, words.get("in"), fluidContainer],
-//                     sequence: [1, effect, 1]
-//                 });
-//             }
-//         }
-//         // return [];
-//         return intents;
-//     }
-// });
-
-// player.addPattern({
-//     intents: function() {
-//         let intents = [];
-//         for (let entity of core.entities.filter(e => e.active !== undefined && e.active === false)) {
-//             function effect() {
-//                 entity.active = true;
-//                 newLine(`You turn on the ${entity.baseName}`)
-//             }
-//             intents.push({
-//                 representation: [words.get("turn on"), entity],
-//                 sequence: [effect]
-//             });
-//         }
-//         return intents;
-//     }
-// });
-
-// player.addPattern({
-//     intents: function() {
-//         let intents = [];
-//         for (let entity of core.entities.filter(e => e.active !== undefined && e.active === true)) {
-//             function effect() {
-//                 entity.active = false;
-//                 newLine(`You turn off the ${entity.baseName}`)
-//             }
-//             intents.push({
-//                 representation: [words.get("turn off"), entity],
-//                 sequence: [effect],
-//             });
-//         }
-//         // return [];
-//         return intents;
-//     }
-// });
+player.addPattern({
+    intents: function() {
+        let intents = [];
+        for (let entity of core.entities.filter(e => e.item && core.isAccessible(e))) {
+            for (let surface of core.entities.filter(e => e.surface)) {
+                function effect() {
+                    newLine(`You put the ${entity.baseName} on the ${surface.baseName}`);
+                    entity.parent = surface.id;
+                    entity.rel = "on";
+                    console.log(entity);
+                }
+                intents.push({
+                    representation: [words.get("put"), entity, words.get("on"), surface],
+                    sequence: [{ effect }],
+                });
+            }
+        }
+        return intents;
+    }
+});
 
 
+player.addPattern({
+    intents: function() {
+        let intents = [];
+        for (let infusable of core.entities.filter(e => e.infusable && core.isAccessible(e))) {
+            for (let fluidContainer of core.entities.filter(e => e.fluidContainer)) {
+                function effect() {
+                    newLine(`You put the ${infusable.baseName} in the ${fluidContainer.baseName} for infusing`);
+                    setParent(fluidContainer, infusable);
+                }
+                intents.push({
+                    representation: [words.get("put"), infusable, words.get("in"), fluidContainer],
+                    sequence: [{ effect }]
+                });
+            }
+        }
+        // return [];
+        return intents;
+    }
+});
 
-// player.addPattern({
-//     intents: function() {
-//         let intents = [];
-//         let flavours = ["mint", "chamomile", "cranberry"];
-//         for (let flavour of flavours) {
-//             let teabag = { baseName: `${flavour} teabag`, item: true, flammable: true, infusable: true, flavour: flavour };
+player.addPattern({
+    intents: function() {
+        let intents = [];
+        for (let entity of core.entities.filter(e => e.active !== undefined && e.active === false)) {
+            function effect() {
+                entity.active = true;
+                newLine(`You turn on the ${entity.baseName}`)
+            }
+            intents.push({
+                representation: [words.get("turn on"), entity],
+                sequence: [{ effect }]
+            });
+        }
+        return intents;
+    }
+});
 
-//             function effect() {
-//                 core.addEntity(teabag);
-//                 newLine(`You grab a ${flavour} teabag`);
-//             }
-//             intents.push({
-//                 representation: [words.get("take"), words.get(`${flavour} teabag`)],
-//                 sequence: [2, effect]
-//             });
-//         }
-//         return intents;
-//     }
-// });
+player.addPattern({
+    intents: function() {
+        let intents = [];
+        for (let entity of core.entities.filter(e => e.active !== undefined && e.active === true)) {
+            function effect() {
+                entity.active = false;
+                newLine(`You turn off the ${entity.baseName}`)
+            }
+            intents.push({
+                representation: [words.get("turn off"), entity],
+                sequence: [{ effect }],
+            });
+        }
+        // return [];
+        return intents;
+    }
+});
+
+
+
+player.addPattern({
+    intents: function() {
+        let intents = [];
+        let flavours = ["mint", "chamomile", "cranberry"];
+        for (let flavour of flavours) {
+            let teabag = { baseName: `${flavour} teabag`, item: true, flammable: true, infusable: true, flavour: flavour };
+
+            function effect() {
+                core.addEntity(teabag);
+                newLine(`You grab a ${flavour} teabag`);
+            }
+            intents.push({
+                representation: [words.get("take"), words.get(`${flavour} teabag`)],
+                sequence: [
+                    createWait(5),
+                    { effect: () => newLine("You rummage through the teabags...") },
+                    createWait(4),
+                    { effect }
+                ]
+            });
+        }
+        return intents;
+    }
+});
 
 // player.addPattern({
 //     intents: function() {
@@ -574,75 +579,75 @@ player.addPattern({
 // })
 
 
-// player.addPattern({
-//     intents: function() {
-//         let intents = [];
-//         for (let entity of core.entities.filter(e => e.lockedContainer && e.locked && core.isAccessible(e))) {
-//             for (let i0 = 0; i0 < 10; i0++) {
-//                 for (let i1 = 0; i1 < 10; i1++) {
-//                     for (let i2 = 0; i2 < 10; i2++) {
-//                         // the sequence
-//                         function tryPassword() {
-//                             if (`${i0}${i1}${i2}` === entity.lockedContainer.password) {
-//                                 entity.locked = false;
-//                                 newLine("The locks click open.")
-//                             } else {
-//                                 newLine("Incorrect.")
-//                             }
-//                         }
-//                         intents.push({
-//                             representation: [words.get(`unlock`), entity, words.get(String(i0)), words.get(String(i1)), words.get(String(i2))],
-//                             sequence: [tryPassword],
-//                             condition: function() {},
-//                         })
-//                     }
-//                 }
-//             }
-//         }
-//         return intents;
-//     }
-// });
+player.addPattern({
+    intents: function() {
+        let intents = [];
+        for (let entity of core.entities.filter(e => e.lockedContainer && e.locked && core.isAccessible(e))) {
+            for (let i0 = 0; i0 < 10; i0++) {
+                for (let i1 = 0; i1 < 10; i1++) {
+                    for (let i2 = 0; i2 < 10; i2++) {
+                        // the sequence
+                        function effect() {
+                            if (`${i0}${i1}${i2}` === entity.lockedContainer.password) {
+                                entity.locked = false;
+                                newLine("The locks click open.")
+                            } else {
+                                newLine("Incorrect.")
+                            }
+                        }
+                        intents.push({
+                            representation: [words.get(`unlock`), entity, words.get(String(i0)), words.get(String(i1)), words.get(String(i2))],
+                            sequence: [{ effect }],
+                            condition: function() {},
+                        })
+                    }
+                }
+            }
+        }
+        return intents;
+    }
+});
 
-// player.addPattern({
-//     intents: function() {
-//         let intents = [];
-//         for (let entity of core.entities.filter(e => e.note)) {
-//             // the sequence
-//             intents.push({
-//                 representation: [words.get(`read`), entity],
-//                 sequence: [() => {
-//                     newLine("You read the note...");
-//                     newLine(entity.note.content)
-//                 }],
-//                 condition: function() {},
-//             })
-//         }
-//         return intents;
-//     }
-// });
+player.addPattern({
+    intents: function() {
+        let intents = [];
+        for (let entity of core.entities.filter(e => e.note)) {
+            // the sequence
+            intents.push({
+                representation: [words.get(`read`), entity],
+                sequence: [{
+                    effect: () => {
+                        newLine("You read the note...");
+                        newLine(entity.note.content)
+                    }
+                }],
+            })
+        }
+        return intents;
+    }
+});
 
-// player.addPattern({
-//     intents: function() {
-//         let intents = [];
-//         for (let entity of core.entities.filter(e => e.closed && core.isAccessible(e))) {
-//             function effect() {
-//                 if (entity.locked) {
-//                     newLine(`The ${entity.baseName} seems to be locked...`)
-//                 } else {
-//                     entity.closed = false;
-//                     newLine(`You open the ${entity.baseName}`);
-//                     newLine(`It contains: ${core.childrenOf(entity).map(e => e.baseName).join(",")}`);
-//                 }
-//             }
-//             intents.push({
-//                 representation: [words.get(`open`), entity],
-//                 sequence: [effect],
-//                 condition: function() {},
-//             })
-//         }
-//         return intents;
-//     }
-// });
+player.addPattern({
+    intents: function() {
+        let intents = [];
+        for (let entity of core.entities.filter(e => e.closed && core.isAccessible(e))) {
+            function effect() {
+                if (entity.locked) {
+                    newLine(`The ${entity.baseName} seems to be locked...`)
+                } else {
+                    entity.closed = false;
+                    newLine(`You open the ${entity.baseName}`);
+                    newLine(`It contains: ${core.childrenOf(entity).map(e => e.baseName).join(",")}`);
+                }
+            }
+            intents.push({
+                representation: [words.get(`open`), entity],
+                sequence: [{ effect }],
+            })
+        }
+        return intents;
+    }
+});
 
 class Area {
     constructor() {
@@ -679,13 +684,17 @@ class EventQueue {
 // core.addEntity({ baseName: "boulder", weight: 10 })
 let area = new Area()
 core.addEntity(area);
-let table = { baseName: "table", surface: true }
-core.addEntity(table, area);
+core.addEntity(new Knife, area);
+core.addEntity({ baseName: "stove", active: false, surface: true, heatSource: true, ctr: 0 }, area);
 core.addEntity({ baseName: "faucet", fluidSource: true, fluid: "water", temperature: 20 }, area);
 core.addEntity(new Teapot(), area);
+
+let table = { baseName: "table", surface: true }
+core.addEntity(table, area);
 core.addEntity({ baseName: "cup", fluidContainer: true, item: true }, table);
-core.addEntity({ baseName: "stove", active: false, surface: true, heatSource: true, ctr: 0 }, area);
-core.addEntity(new Knife, area);
+let note = { baseName: "super secret note", note: { content: `It reads: "The password is 6 1 5"` } };
+core.addEntity(note, table);
+
 let chest = { baseName: "chest", closed: true, locked: true, lockedContainer: { password: `615` } };
 core.addEntity(chest, table);
 let smallerChest = { baseName: "smaller chest", closed: true };
@@ -695,70 +704,70 @@ core.addEntity({ baseName: `MAGICAL teabag`, item: true, flammable: true, infusa
 core.addEntity({ baseName: `FABULOUS teabag`, item: true, flammable: true, infusable: true, flavour: "FABULOUS" }, smallerChest);
 
 
-// core.receivers.push({
-//     on_tick: function(data) {
-//         for (let stove of core.entities.filter(e => e.baseName === "stove")) {
-//             if (stove.active) {
-//                 if (stove.ctr >= 10) {
-//                     stove.ctr = 0;
-//                     newLine("The stove's flame burns a warm orange.")
-//                 }
-//                 for (let entityOnStove of core.entities.filter(e => (e.parent === stove.id))) {
-//                     // newLine(`The stove heats up the ${entityOnStove.baseName}`)
-//                     if (entityOnStove.fluidContainer) {
-//                         for (let fluid of core.entities.filter(e => (e.fluid && isParent(entityOnStove, e)))) {
-//                             newLine(`The stove heats up the ${fluid.baseName} in the ${entityOnStove.baseName}`);
-//                             fluid.temperature += 1;
-//                             if (fluid.temperature == 23) {
-//                                 newLine(`The ${entityOnStove.baseName} is filled with hot ${fluid.baseName}!`)
-//                             }
-//                         }
-//                     }
-//                     if (entityOnStove.flammable) {
-//                         newLine(`The ${entityOnStove.baseName} burns up`)
-//                         core.deleteById(entityOnStove.id);
-//                     }
-//                 }
-//             }
-//         }
-//     }
-// });
+core.receivers.push({
+    on_tick: function(data) {
+        for (let stove of core.entities.filter(e => e.baseName === "stove")) {
+            if (stove.active) {
+                if (stove.ctr >= 10) {
+                    stove.ctr = 0;
+                    newLine("The stove's flame burns a warm orange.")
+                }
+                for (let entityOnStove of core.entities.filter(e => (e.parent === stove.id))) {
+                    // newLine(`The stove heats up the ${entityOnStove.baseName}`)
+                    if (entityOnStove.fluidContainer) {
+                        for (let fluid of core.entities.filter(e => (e.fluid && isParent(entityOnStove, e)))) {
+                            newLine(`The stove heats up the ${fluid.baseName} in the ${entityOnStove.baseName}`);
+                            fluid.temperature += 1;
+                            if (fluid.temperature == 23) {
+                                newLine(`The ${entityOnStove.baseName} is filled with hot ${fluid.baseName}!`)
+                            }
+                        }
+                    }
+                    if (entityOnStove.flammable) {
+                        newLine(`The ${entityOnStove.baseName} burns up`)
+                        core.deleteById(entityOnStove.id);
+                    }
+                }
+            }
+        }
+    }
+});
 
-// core.receivers.push({
-//     on_tick: function(data) {
-//         for (let fluidContainer of core.entities.filter(e => e.fluidContainer)) {
-//             for (let hotFluid of core.entities.filter(e => (
-//                     e.fluid &&
-//                     isParent(fluidContainer, e) &&
-//                     e.temperature > 23))) {
-//                 // if infusable in container and hot fluid
-//                 for (infusingTeabag of core.entities.filter(e => (
-//                         e.infusable &&
-//                         isParent(fluidContainer, e)))) {
-//                     hotFluid.baseName = `${infusingTeabag.flavour} tea`;
-//                     console.log("hotFluid", hotFluid);
-//                     emitSignal("teaMade");
-//                 }
-//             }
-//         }
-//     }
-// })
+core.receivers.push({
+    on_tick: function(data) {
+        for (let fluidContainer of core.entities.filter(e => e.fluidContainer)) {
+            for (let hotFluid of core.entities.filter(e => (
+                    e.fluid &&
+                    isParent(fluidContainer, e) &&
+                    e.temperature > 23))) {
+                // if infusable in container and hot fluid
+                for (infusingTeabag of core.entities.filter(e => (
+                        e.infusable &&
+                        isParent(fluidContainer, e)))) {
+                    hotFluid.baseName = `${infusingTeabag.flavour} tea`;
+                    console.log("hotFluid", hotFluid);
+                    emitSignal("teaMade");
+                }
+            }
+        }
+    }
+})
 
-// core.addEntity({
-//     type: "winBehaviourState",
-//     baseName: "winBehaviourState",
-//     won: false,
-// });
+core.addEntity({
+    type: "winBehaviourState",
+    baseName: "winBehaviourState",
+    won: false,
+});
 
-// core.receivers.push({
-//     on_teaMade: function(data) {
-//         let state = core.entities.filter(e => e.type === "winBehaviourState")[0];
-//         if (state.won === false) {
-//             newLine(`Congratulations, you have made tea`)
-//             state.won = true;
-//         }
-//     }
-// })
+core.receivers.push({
+    on_teaMade: function(data) {
+        let state = core.entities.filter(e => e.type === "winBehaviourState")[0];
+        if (state.won === false) {
+            newLine(`Congratulations, you have made tea`)
+            state.won = true;
+        }
+    }
+})
 
 
 core.addEntity({
@@ -817,44 +826,45 @@ setInterval(() => {
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 
-// player.addPattern({
-//     durations: [{ baseName: "a bit", dur: 1 }, { baseName: "a while", dur: 5 }, { baseName: "a long time", dur: 10 }],
-//     intents: function() {
-//         let intents = [];
-//         for (let duration of this.durations) {
-//             function effect() {
-//                 newLine(`You wait ${duration.baseName}`)
-//             }
-//             intents.push({
-//                 representation: [words.get("wait"), words.get(duration.baseName)],
-//                 sequence: [effect, duration.dur]
-//             });
-//         }
-//         return intents;
-//     }
-// });
+player.addPattern({
+    durations: [{ baseName: "a bit", dur: 1 }, { baseName: "a while", dur: 10 }, { baseName: "a long time", dur: 20 }],
+    intents: function() {
+        let intents = [];
+        for (let duration of this.durations) {
+            function effect() {
+                newLine(`You wait ${duration.baseName}`)
+            }
+            intents.push({
+                representation: [words.get("wait"), words.get(duration.baseName)],
+                sequence: [{ effect }, createWait(duration.dur)]
+            });
+        }
+        return intents;
+    }
+});
 // console.log("top")
 // console.log(core.entities.filter(e => core.getDepth(e) === 0))
-// player.addPattern({
-//     intents: function() {
-//         let intents = [];
-//         // the effect function
-//         function clap() {
-//             newLine("CLAP!")
-//         }
-//         // the sequence
-//         intents.push({
-//             representation: [words.get("slow clap.")],
-//             sequence: [4, clap, 2, clap, clap, 1, clap, clap, clap],
-//             condition: function() {},
-//         })
-//         return intents;
-//     }
-// })
+player.addPattern({
+    intents: function() {
+        let intents = [];
+        // the effect function
+        function effect() {
+            newLine("CLAP!")
+        }
+        // the sequence
+        intents.push({
+            representation: [words.get("DEBUG"), words.get("slow clap.")],
+            sequence: [createWait(4), effect, createWait(2), effect, effect, createWait(2), effect, effect, effect],
+            condition: function() {},
+        })
+        return intents;
+    }
+})
 
 function createWait(ticks) {
     return {
-        duration: ticks
+        duration: ticks,
+        pause: 100,
     }
 }
 
@@ -873,7 +883,7 @@ player.addPattern({
         }
         // the sequence
         intents.push({
-            representation: [words.get("3 x ping.")],
+            representation: [words.get("DEBUG"), words.get("3 x ping.")],
             sequence: [action(), action(), action()],
         })
         return intents;
@@ -895,7 +905,7 @@ player.addPattern({
         }
         // the sequence
         intents.push({
-            representation: [words.get("zing.")],
+            representation: [words.get("DEBUG"), words.get("zing.")],
             sequence: [action()],
         })
         return intents;
@@ -914,7 +924,7 @@ player.addPattern({
         }
         // the sequence
         intents.push({
-            representation: [words.get("empty wait 3 ticks")],
+            representation: [words.get("DEBUG"), words.get("empty wait 3 ticks")],
             sequence: [
                 createWait(3),
             ],
@@ -944,14 +954,18 @@ core.receivers.push({
     }
 })
 
-let note = { baseName: "super secret note", note: { content: `It reads: "The password is 6 1 5"` } };
-core.addEntity(note, table);
 
+
+core.getIntents();
+
+//^ document
 function debug(text) {
     document.getElementById("debug").innerText = text;
 }
 
-core.getIntents();
+// setInterval(() => {
+//     debug(`int: ${core.intentsReady}  sig: ${core.signalsReady}`);
+// }, 50);
 
 //^ document
 function newLine(text) {
