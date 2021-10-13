@@ -8,6 +8,7 @@ class Core {
         this.executeReady = true;
         this.queue = []; // [Action*]
         this.receivers = []; // {on_signalType:func()}
+        this.time = 0;
     }
 
     addEntity(entity, parentEntity = undefined) {
@@ -96,13 +97,18 @@ class Core {
                     console.log(`queued up`, action);
 
                     // queue up actions including the first with duration
-                    if (action.duration <= 1 || action.duration === undefined) {
+                    if (action.duration <= 0 || action.duration === undefined) {
                         // instant action, keep queueing
                         sequence.splice(i, 1);
-                    } else if (action.duration > 1) {
+                    } else if (action.duration > 0) {
                         // action that will be taken multiple times
                         ticks = action.duration;
+                        // end actions here
+                        if (action.duration <= 1) {
+                            sequence.splice(i, 1);
+                        }
                         console.log(`action with ${ticks} duration`, action);
+                        // TODO: make multiple intent declarations possible per tick?
                         action.duration -= 1;
                     } else {
                         throw `Not sure what this means`;
@@ -110,10 +116,11 @@ class Core {
                 }
             }
         }
-        // queue up a tick signal
-        this.queue.push({ signals: [{ type: "tick" }] });
         // when ready, propagate signals
         if (this.intentsReady) {
+            // queue up a tick signal
+            this.queue.push({ signals: [{ type: "tick" }] });
+            // newLine(`starting tick ${core.time}`);
             this.propagateSignals();
         }
     }
@@ -165,6 +172,7 @@ class Core {
                 }
             }
         } else {
+            core.time += 1;
             this.getIntents();
         }
     }
@@ -264,9 +272,9 @@ class Player {
         for (let intent of validIntents) {
             // console.log(`studying ${intent.representation.map(e => e.baseName)}`);
             // console.log(intent);
-            // if the intent is the same length as the command, it can be setIntentd
+            // if the intent is the same length as the command, it can be confirmed
             if (intent.representation.length == player.command.length) {
-                options.push({ baseName: "setIntent" })
+                options.push({ baseName: "> confirm <" })
             } else {
                 let newOption = intent.representation[player.command.length];
                 let duplicateThing = false;
@@ -347,7 +355,7 @@ function setOptions(player) {
         node.innerText = optionText;
         document.getElementById('options').appendChild(node);
         // when the span is clicked, handle using that optionText
-        if (optionText === "setIntent") {
+        if (optionText === "> confirm <") {
             node.addEventListener("click", () => {
                 player.setIntent();
                 clearOptionsUI();
@@ -375,36 +383,36 @@ function setOptions(player) {
 }
 
 
-// player.addPattern({
-//     // fill container from fluidSource
-//     intents: function() {
-//         let intents = [];
-//         for (let fluidSource of core.entities.filter(e => e.fluidSource)) {
-//             for (let container of core.entities.filter(e => e.fluidContainer)) {
-//                 // check the container is empty, no fluids in container
-//                 let fluidsInContainer = core.entities.filter(e => e.fluid && isParent(container, e));
-//                 // console.log("fluids", fluidsInContainer);
-//                 if (fluidsInContainer.length === 0) {
-//                     function effect() {
-//                         let fluid = { baseName: fluidSource.fluid, fluid: true, temperature: fluidSource.temperature }
-//                         newLine(`You fill up the ${container.baseName} from the ${fluidSource.baseName} with ${fluid.baseName}`)
-//                         core.addEntity(fluid);
-//                         setParent(container, fluid);
-//                     }
-//                     intents.push({
-//                         representation: [words.get("fill"), container, words.get("from"), fluidSource],
-//                         sequence: [2, effect, 3],
-//                         // condition: function() {
-//                         //     return core.getById(fluidSource.id) && core.getById(container.id);
-//                         // },
-//                     });
-//                 }
-//                 // throw "HALT"
-//             }
-//         }
-//         return intents;
-//     }
-// });
+player.addPattern({
+    // fill container from fluidSource
+    intents: function() {
+        let intents = [];
+        for (let fluidSource of core.entities.filter(e => e.fluidSource)) {
+            for (let container of core.entities.filter(e => e.fluidContainer)) {
+                // check the container is empty, no fluids in container
+                let fluidsInContainer = core.entities.filter(e => e.fluid && isParent(container, e));
+                // console.log("fluids", fluidsInContainer);
+                if (fluidsInContainer.length === 0) {
+                    function effect() {
+                        let fluid = { baseName: fluidSource.fluid, fluid: true, temperature: fluidSource.temperature }
+                        newLine(`You fill up the ${container.baseName} from the ${fluidSource.baseName} with ${fluid.baseName}`)
+                        core.addEntity(fluid);
+                        setParent(container, fluid);
+                    }
+                    intents.push({
+                        representation: [words.get("fill"), container, words.get("from"), fluidSource],
+                        sequence: [createWait(3), { effect }, createWait(3)],
+                        // condition: function() {
+                        //     return core.getById(fluidSource.id) && core.getById(container.id);
+                        // },
+                    });
+                }
+                // throw "HALT"
+            }
+        }
+        return intents;
+    }
+});
 
 // player.addPattern({
 //     // empty container
@@ -765,7 +773,7 @@ core.addEntity({ baseName: `FABULOUS teabag`, item: true, flammable: true, infus
 core.addEntity({
     baseName: "timer",
     type: "timer",
-    time: 0
+    time: -1
 })
 
 core.receivers.push({
@@ -906,14 +914,14 @@ player.addPattern({
         // the effect function
         function action() {
             return {
-                effect: () => newLine("Waited 5 ticks"),
+                effect: () => newLine("Waiting 3 ticks"),
             }
         }
         // the sequence
         intents.push({
-            representation: [words.get("wait 5 ticks")],
+            representation: [words.get("empty wait 3 ticks")],
             sequence: [
-                createWait(5), action()
+                createWait(3),
             ],
         })
         return intents;

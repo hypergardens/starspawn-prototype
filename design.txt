@@ -5,6 +5,8 @@ Command: [Word*]
 
 Entity
     baseName: str 
+    +- parent: ID
+    +- rel: str
 
 Word < Entity
 
