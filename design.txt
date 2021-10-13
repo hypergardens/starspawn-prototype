@@ -2,13 +2,6 @@ next: event queueing
 
 Command: [Word*]
 
-Pattern
-    actions() => [Action*] 
-
-Actor
-    intent: int | Action
-
-Action
 
 
 Entity
@@ -16,17 +9,43 @@ Entity
 
 Word < Entity
 
-design decisions
-    types
-        1) set of types[] for components composited into entity
-            1b) array of types[] for components composited into entity
-        2) bool flag for typeA, typeB, typeC
-        3) type: "string"
+Intent
+    representation: [Entity*]
+    queue: [Action*]
 
-core:
-    JSON objects and states
-    systemic behaviors
-    linear complexity, cubic depth
+Signal
+    type: str
+
+Action
+    +- effect: int | Action*
+    +- wait: int
+    +- condition: func()
+    +- signals: [Signal*]
+
+Pattern
+    actions() => [Action*] 
+
+loop:
+    1) getIntent() - hangs for input
+        start ready
+        for every actor, get intent.
+        if not ready, redo in 50ms
+    2) emitSignals() - instant
+        start !ready
+        while not ready
+            set ready
+            for every Action, propagate signal
+                clear signals of action
+                queue extra Actions after emitter and unset "ready"
+
+    3) execute() - instant if waiting on ewcs Action
+        while not empty:
+            get next Action
+                if condition()
+                    if effect()
+                        do effect
+                if waiting, set timeout and run execute()
+        run getIntent()
 
 next steps:
     visible object tree

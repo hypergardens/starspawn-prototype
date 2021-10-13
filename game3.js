@@ -93,8 +93,6 @@ class Player {
         this.baseName = "starspawn";
         this.core = core;
         this.intent = undefined; // action
-        this.windup = 0;
-        this.winddown = 0;
         this.picking = false;
         this.command = [];
         this.patterns = [];
