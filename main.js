@@ -22,8 +22,8 @@ class Core {
         return found;
     }
 
-    getDepth(id) {
-        let entity = this.getById(id);
+    getDepth(entity) {
+        if (entity.id === undefined) throw `no id for object ${entity}`;
         let depth = 0;
         while (entity.parent !== undefined) {
             entity = this.getById(entity.parent);
@@ -35,7 +35,7 @@ class Core {
     childrenOf(entity) {
         let contents = this.entities.filter(e => isParent(entity, e));
         // if (contents.length > 0) console.log(contents)
-        // console.log("children of", entity.text, contents)
+        // console.log("children of", entity.baseName, contents)
         return contents;
     }
 
@@ -53,8 +53,8 @@ class Core {
 }
 
 class Word {
-    constructor(text) {
-        this.text = text;
+    constructor(baseName) {
+        this.baseName = baseName;
         this.type = "word";
     }
 }
@@ -91,7 +91,7 @@ function unsetParent(child) {
 
 class Player {
     constructor(core) {
-        this.text = "player";
+        this.baseName = "starspawn";
         this.core = core;
         this.intent = undefined; // action
         this.windup = 0;
@@ -122,10 +122,10 @@ class Player {
             let valid = true;
             for (let i = 0; i < this.command.length; i++) {
                 if (action.representation[i] !== this.command[i]) {
-                    // console.log(action.representation[i].text, "invalid")
+                    // console.log(action.representation[i].baseName, "invalid")
                     valid = false;
                 } else {
-                    // console.log(action.representation[i].text, "valid")
+                    // console.log(action.representation[i].baseName, "valid")
                 }
             }
             if (valid) {
@@ -145,11 +145,11 @@ class Player {
 
         console.log(`${validActions.length} valid commands at command.length ${player.command.length}`)
         for (let action of validActions) {
-            // console.log(`studying ${action.representation.map(e => e.text)}`);
+            // console.log(`studying ${action.representation.map(e => e.baseName)}`);
             // console.log(action);
             // if the action is the same length as the command, it can be setIntentd
             if (action.representation.length == player.command.length) {
-                options.push({ text: "setIntent" })
+                options.push({ baseName: "setIntent" })
             } else {
                 let newOption = action.representation[player.command.length];
                 let duplicateThing = false;
@@ -173,7 +173,7 @@ class Player {
     // updateCommandUI()
     pickNextWord(optionI) {
         let options = this.getNextWords();
-        // console.log(`picked ${options[optionI].text}`);
+        // console.log(`picked ${options[optionI].baseName}`);
         this.command.push(options[optionI]);
 
         updateCommandUI(this);
@@ -189,7 +189,7 @@ class Player {
             throw "EXECUTION ERROR, NOT ONE VALID ACTION"
         }
         let action = actions[0];
-        console.log(`intending ${action.representation.map(e => e.text)}`);
+        console.log(`intending ${action.representation.map(e => e.baseName)}`);
 
         // set intent, not picking
         this.intent = action;
@@ -213,7 +213,7 @@ let player = new Player(core)
 
 //^ command, document
 function updateCommandUI(player) {
-    document.getElementById("command").innerHTML = ">" + player.command.map(e => e.text).join(" ");
+    document.getElementById("command").innerHTML = ">" + player.command.map(e => e.baseName).join(" ");
 }
 
 
@@ -233,8 +233,8 @@ function setOptions(player) {
     // get the next words, and create an element for each on document
     let options = player.getNextWords();
     for (let i = 0; i < options.length; i++) {
-        let optionText = options[i].text;
-        // create a span with the optionText text
+        let optionText = options[i].baseName;
+        // create a span with the optionText baseName
         var node = document.createElement("a");
         node.className = "choice";
         node.innerText = optionText;
@@ -279,8 +279,8 @@ player.addPattern({
                 // console.log("fluids", fluidsInContainer);
                 if (fluidsInContainer.length === 0) {
                     function effect() {
-                        let fluid = { text: fluidSource.fluid, fluid: true, temperature: fluidSource.temperature }
-                        newLine(`You fill up the ${container.text} from the ${fluidSource.text} with ${fluid.text}`)
+                        let fluid = { baseName: fluidSource.fluid, fluid: true, temperature: fluidSource.temperature }
+                        newLine(`You fill up the ${container.baseName} from the ${fluidSource.baseName} with ${fluid.baseName}`)
                         core.addEntity(fluid);
                         setParent(container, fluid);
                     }
@@ -306,7 +306,7 @@ player.addPattern({
         for (let container of core.entities.filter(e => e.fluidContainer)) {
             if (core.childrenOf(container).length !== 0) {
                 function effect() {
-                    newLine(`You empty the ${container.text}.`);
+                    newLine(`You empty the ${container.baseName}.`);
                     for (let entity of core.entities) {
                         if (isParent(container, entity)) {
                             console.log("deleting", entity);
@@ -337,7 +337,7 @@ player.addPattern({
                 function effect() {
                     for (let entity of core.entities) {
                         if (isParent(sourceContainer, entity)) {
-                            newLine(`You pour the ${entity.text} from the ${sourceContainer.text} into the ${destinationContainer.text}.`);
+                            newLine(`You pour the ${entity.baseName} from the ${sourceContainer.baseName} into the ${destinationContainer.baseName}.`);
                             setParent(destinationContainer, entity);
                         }
                     }
@@ -358,7 +358,7 @@ player.addPattern({
         for (let entity of core.entities.filter(e => e.item && core.isAccessible(e))) {
             for (let surface of core.entities.filter(e => e.surface)) {
                 function effect() {
-                    newLine(`You put the ${entity.text} on the ${surface.text}`);
+                    newLine(`You put the ${entity.baseName} on the ${surface.baseName}`);
                     entity.parent = surface.id;
                     console.log(entity);
                 }
@@ -379,7 +379,7 @@ player.addPattern({
         for (let infusable of core.entities.filter(e => e.infusable && core.isAccessible(e))) {
             for (let fluidContainer of core.entities.filter(e => e.fluidContainer)) {
                 function effect() {
-                    newLine(`You put the ${infusable.text} in the ${fluidContainer.text} for infusing`);
+                    newLine(`You put the ${infusable.baseName} in the ${fluidContainer.baseName} for infusing`);
                     setParent(fluidContainer, infusable);
                 }
                 actions.push({
@@ -394,16 +394,15 @@ player.addPattern({
 });
 
 player.addPattern({
-    verb: { text: "turn on" },
     actions: function() {
         let actions = [];
         for (let entity of core.entities.filter(e => e.active !== undefined && e.active === false)) {
             function effect() {
                 entity.active = true;
-                newLine(`You turn on the ${entity.text}`)
+                newLine(`You turn on the ${entity.baseName}`)
             }
             actions.push({
-                representation: [this.verb, entity],
+                representation: [words.get("turn on"), entity],
                 queue: [effect]
             });
         }
@@ -412,16 +411,15 @@ player.addPattern({
 });
 
 player.addPattern({
-    verb: { text: "turn off" },
     actions: function() {
         let actions = [];
         for (let entity of core.entities.filter(e => e.active !== undefined && e.active === true)) {
             function effect() {
                 entity.active = false;
-                newLine(`You turn off the ${entity.text}`)
+                newLine(`You turn off the ${entity.baseName}`)
             }
             actions.push({
-                representation: [this.verb, entity],
+                representation: [words.get("turn off"), entity],
                 queue: [effect],
             });
         }
@@ -431,15 +429,15 @@ player.addPattern({
 });
 
 player.addPattern({
-    durations: [{ text: "a bit", dur: 1 }, { text: "a while", dur: 5 }, { text: "a long time", dur: 10 }],
+    durations: [{ baseName: "a bit", dur: 1 }, { baseName: "a while", dur: 5 }, { baseName: "a long time", dur: 10 }],
     actions: function() {
         let actions = [];
         for (let duration of this.durations) {
             function effect() {
-                newLine(`You wait ${duration.text}`)
+                newLine(`You wait ${duration.baseName}`)
             }
             actions.push({
-                representation: [words.get("wait"), words.get(duration.text)],
+                representation: [words.get("wait"), words.get(duration.baseName)],
                 queue: [effect, duration.dur]
             });
         }
@@ -453,7 +451,7 @@ player.addPattern({
         let actions = [];
         let flavours = ["mint", "chamomile", "cranberry"];
         for (let flavour of flavours) {
-            let teabag = { text: `${flavour} teabag`, item: true, flammable: true, infusable: true, flavour: flavour };
+            let teabag = { baseName: `${flavour} teabag`, item: true, flammable: true, infusable: true, flavour: flavour };
 
             function effect() {
                 core.addEntity(teabag);
@@ -488,13 +486,13 @@ player.addPattern({
 
 class Area {
     constructor() {
-        this.text = "prototype area";
+        this.baseName = "prototype area";
     }
 }
 
 class Teapot {
     constructor() {
-        this.text = "teapot";
+        this.baseName = "teapot";
         this.fluidContainer = true;
         this.item = true;
     }
@@ -502,7 +500,7 @@ class Teapot {
 
 class Knife {
     constructor() {
-        this.text = "knife";
+        this.baseName = "knife";
         this.sharp = 3;
         this.item = true;
     }
@@ -513,51 +511,51 @@ class EventQueue {
 
     }
 }
-// core.addEntity({ text: "rose", inv: false, weight: 1, smell: "sweet" })
-// core.addEntity({ text: "rose", inv: true, weight: 2, smell: "sugary" })
-// core.addEntity({ text: "daisy", inv: false, weight: 1, smell: "daisylike" })
-// core.addEntity({ text: "shrine", shrine: true })
-// core.addEntity({ text: "crystal", inv: false, weight: 1 })
-// core.addEntity({ text: "boulder", weight: 10 })
+// core.addEntity({ baseName: "rose", inv: false, weight: 1, smell: "sweet" })
+// core.addEntity({ baseName: "rose", inv: true, weight: 2, smell: "sugary" })
+// core.addEntity({ baseName: "daisy", inv: false, weight: 1, smell: "daisylike" })
+// core.addEntity({ baseName: "shrine", shrine: true })
+// core.addEntity({ baseName: "crystal", inv: false, weight: 1 })
+// core.addEntity({ baseName: "boulder", weight: 10 })
 let area = new Area()
 core.addEntity(area);
-let table = { text: "table", surface: true }
+let table = { baseName: "table", surface: true }
 core.addEntity(table, area);
-core.addEntity({ text: "faucet", fluidSource: true, fluid: "water", temperature: 20 }, area);
+core.addEntity({ baseName: "faucet", fluidSource: true, fluid: "water", temperature: 20 }, area);
 core.addEntity(new Teapot(), area);
-core.addEntity({ text: "cup", fluidContainer: true, item: true }, table);
-core.addEntity({ text: "stove", active: false, surface: true, heatSource: true, ctr: 0 }, area);
+core.addEntity({ baseName: "cup", fluidContainer: true, item: true }, table);
+core.addEntity({ baseName: "stove", active: false, surface: true, heatSource: true, ctr: 0 }, area);
 core.addEntity(new Knife, area);
-let chest = { text: "chest", closed: true, locked: true, lockedContainer: { password: `615` } };
+let chest = { baseName: "chest", closed: true, locked: true, lockedContainer: { password: `615` } };
 core.addEntity(chest, table);
-let smallerChest = { text: "smaller chest", closed: true };
+let smallerChest = { baseName: "smaller chest", closed: true };
 core.addEntity(smallerChest, chest);
 
-core.addEntity({ text: `MAGICAL teabag`, item: true, flammable: true, infusable: true, flavour: "MAGICAL" }, smallerChest);
-core.addEntity({ text: `FABULOUS teabag`, item: true, flammable: true, infusable: true, flavour: "FABULOUS" }, smallerChest);
+core.addEntity({ baseName: `MAGICAL teabag`, item: true, flammable: true, infusable: true, flavour: "MAGICAL" }, smallerChest);
+core.addEntity({ baseName: `FABULOUS teabag`, item: true, flammable: true, infusable: true, flavour: "FABULOUS" }, smallerChest);
 
 
 receivers.push({
     on_tick: function(data) {
-        for (let stove of core.entities.filter(e => e.text === "stove")) {
+        for (let stove of core.entities.filter(e => e.baseName === "stove")) {
             if (stove.active) {
                 if (stove.ctr >= 10) {
                     stove.ctr = 0;
                     newLine("The stove's flame burns a warm orange.")
                 }
                 for (let entityOnStove of core.entities.filter(e => (e.parent === stove.id))) {
-                    // newLine(`The stove heats up the ${entityOnStove.text}`)
+                    // newLine(`The stove heats up the ${entityOnStove.baseName}`)
                     if (entityOnStove.fluidContainer) {
                         for (let fluid of core.entities.filter(e => (e.fluid && isParent(entityOnStove, e)))) {
-                            newLine(`The stove heats up the ${fluid.text} in the ${entityOnStove.text}`);
+                            newLine(`The stove heats up the ${fluid.baseName} in the ${entityOnStove.baseName}`);
                             fluid.temperature += 1;
                             if (fluid.temperature == 23) {
-                                newLine(`The ${entityOnStove.text} is filled with hot ${fluid.text}!`)
+                                newLine(`The ${entityOnStove.baseName} is filled with hot ${fluid.baseName}!`)
                             }
                         }
                     }
                     if (entityOnStove.flammable) {
-                        newLine(`The ${entityOnStove.text} burns up`)
+                        newLine(`The ${entityOnStove.baseName} burns up`)
                         core.deleteById(entityOnStove.id);
                     }
                 }
@@ -577,7 +575,7 @@ receivers.push({
                 for (infusingTeabag of core.entities.filter(e => (
                         e.infusable &&
                         isParent(fluidContainer, e)))) {
-                    hotFluid.text = `${infusingTeabag.flavour} tea`;
+                    hotFluid.baseName = `${infusingTeabag.flavour} tea`;
                     console.log("hotFluid", hotFluid);
                     emitSignal("teaMade");
                 }
@@ -588,7 +586,7 @@ receivers.push({
 
 core.addEntity({
     type: "winBehaviourState",
-    text: "winBehaviourState",
+    baseName: "winBehaviourState",
     won: false,
 });
 
@@ -604,7 +602,7 @@ receivers.push({
 
 
 core.addEntity({
-    text: "timer",
+    baseName: "timer",
     type: "timer",
     time: 0
 })
@@ -634,7 +632,7 @@ let time = 0;
 // setOptions();
 
 for (let entity of core.entities) {
-    console.log(entity.text, core.getDepth(entity.id))
+    console.log(entity.baseName, core.getDepth(entity))
 }
 
 
@@ -643,15 +641,15 @@ function updateEntityTreeUI() {
 
     function indentedSubtree(id, depth = 0) {
         let entity = core.getById(id);
-        if (!entity.text) return "";
-        text = "|" + "----".repeat(core.getDepth(entity.id)) + entity.text + "\n";
+        if (!entity.baseName) return "";
+        text = "|" + "----".repeat(core.getDepth(entity)) + entity.baseName + "\n";
         for (let child of core.childrenOf(entity).filter(e => core.isAccessible(e))) {
             text += indentedSubtree(child.id, depth + 1);
         }
         return text;
     }
 
-    for (let entity of core.entities.filter(e => core.getDepth(e.id) === 0)) {
+    for (let entity of core.entities.filter(e => core.getDepth(e) === 0)) {
         text += indentedSubtree(entity.id, 0);
     }
     document.getElementById("entityTree").innerText = text;
@@ -661,7 +659,7 @@ setInterval(() => {
 }, 500);
 
 // console.log("top")
-// console.log(core.entities.filter(e => core.getDepth(e.id) === 0))
+// console.log(core.entities.filter(e => core.getDepth(e) === 0))
 // player.addPattern({
 //     actions: function() {
 //         let actions = [];
@@ -680,7 +678,7 @@ setInterval(() => {
 // })
 
 
-// console.log(core.entities.filter(e => core.getDepth(e.id) === 0))
+// console.log(core.entities.filter(e => core.getDepth(e) === 0))
 // player.addPattern({
 //     actions: function() {
 //         let actions = [];
@@ -752,11 +750,11 @@ player.addPattern({
         for (let entity of core.entities.filter(e => e.closed && core.isAccessible(e))) {
             function effect() {
                 if (entity.locked) {
-                    newLine(`The ${entity.text} seems to be locked...`)
+                    newLine(`The ${entity.baseName} seems to be locked...`)
                 } else {
                     entity.closed = false;
-                    newLine(`You open the ${entity.text}`);
-                    newLine(`It contains ${core.childrenOf(entity).map(e => e.text).join(",")}`);
+                    newLine(`You open the ${entity.baseName}`);
+                    newLine(`It contains: ${core.childrenOf(entity).map(e => e.baseName).join(",")}`);
                 }
             }
             actions.push({
@@ -769,7 +767,7 @@ player.addPattern({
     }
 });
 
-let note = { text: "super secret note", note: { content: `It reads: "The password is 6 1 5"` } };
+let note = { baseName: "super secret note", note: { content: `It reads: "The password is 6 1 5"` } };
 core.addEntity(note, table);
 /*
 player

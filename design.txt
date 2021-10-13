@@ -3,20 +3,18 @@ next: event queueing
 Command: [Word*]
 
 Pattern
-    verb: Word,
     actions() => [Action*] 
 
+Actor
+    intent: int | Action
+
 Action
-    windup: N
-    winddown: N 
-    representation: [Word*]
-    condition(): bool
-    effect(): procedure, signals
+
+
+Entity
+    baseName: str 
 
 Word < Entity
-    generic: false
-    text: "myName"
-
 
 design decisions
     types
@@ -29,19 +27,6 @@ core:
     JSON objects and states
     systemic behaviors
     linear complexity, cubic depth
-
-must-have soon:
-    object tree
-        type: "objtype"
-        text: "Object"
-        parents: [[ID, "type"], [ID, "type"]]
-    signals
-        emitSignal
-        receiveSignal
-    behaviors
-        physicalObject
-        prototypes
-
 
 next steps:
     visible object tree
@@ -60,6 +45,3 @@ next steps:
 
 fancy:
     D3 transitions
-
-document:
-    paper prototypes for narrative

@@ -16,6 +16,11 @@ container
     capacity: int
     open: bool
 
+    locked: bool
+    passwordLock: {
+        password: 0000-9999
+    }
+    
     utils:
         currentCapacity()
         isFull()
@@ -28,6 +33,12 @@ container
 interrupt
     power: 0-20 (10)
 
+core
+    processNextEvent
+
+### event
+    type: str
+    wait: int
 
 ### action
 
