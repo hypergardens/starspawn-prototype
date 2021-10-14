@@ -447,7 +447,7 @@ player.addPattern({
     intents: function() {
         let intents = [];
         let nonemptyContainer = (e => (e.fluidContainer && (core.childrenOf(e).length !== 0)))
-        let emptyContainer = (e => (e.fluidContainer && (core.childrenOf(e).length === 0)))
+        let emptyContainer = (e => (e.fluidContainer && (core.childrenOf(e).filter(e => e.fluid).length === 0)))
         for (let sourceContainer of core.entities.filter(nonemptyContainer)) {
             for (let destinationContainer of core.entities.filter(emptyContainer)) {
                 function effect() {
@@ -739,6 +739,7 @@ console.log("ct:", cranberryTeabag);
 let table = { baseName: "table", surface: true }
 core.addEntity(table, area);
 core.addEntity({ baseName: "cup", fluidContainer: true, item: true }, table);
+core.addEntity({ baseName: "bowl", fluidContainer: true, item: true }, table);
 let note = { baseName: "super secret note", note: { content: `It reads: "The password is 6 1 5"` } };
 core.addEntity(note, table);
 let chest = { baseName: "chest", closed: true, locked: true, lockedContainer: { password: `615` } };
