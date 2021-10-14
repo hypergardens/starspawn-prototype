@@ -733,6 +733,8 @@ let cupboard = { baseName: "tea cupboard", closed: true };
 core.addEntity(cupboard, area);
 core.addEntity(new Teapot(), area);
 let cranberryTeabag = { baseName: `cranberry teabag`, item: true, flammable: true, infusable: true, flavour: "OBVIOUS" };
+// let cranberryTeabag = { baseName: `instant noodles`, item: true, flammable: true, infusable: true, flavour: "salty" };
+// core.addEntity(noodles, cupboard);
 core.addEntity(cranberryTeabag, cupboard);
 console.log("ct:", cranberryTeabag);
 let table = { baseName: "table", surface: true }
@@ -745,8 +747,10 @@ let chest = { baseName: "chest", closed: true, locked: true, lockedContainer: { 
 core.addEntity(chest, table);
 let smallerChest = { baseName: "smaller chest", closed: true };
 core.addEntity(smallerChest, chest);
+let evenSmallerChest = { baseName: "even smaller chest", closed: true };
+core.addEntity(evenSmallerChest, smallerChest);
 
-core.addEntity({ baseName: `SECRETIVE teabag`, item: true, flammable: true, infusable: true, flavour: "SECRET" }, smallerChest);
+core.addEntity({ baseName: `SECRETIVE teabag`, item: true, flammable: true, infusable: true, flavour: "SECRET" }, evenSmallerChest);
 
 
 core.receivers.push({
