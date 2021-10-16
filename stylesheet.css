@@ -1,5 +1,6 @@
 * {
-    font-family: Varela Round, Open Sans, sans-serif;
+    /* font-family: Varela Round, Open Sans, sans-serif; */
+    font-family: IBM Plex Mono, Consolas, Courier New, Courier, monospace;
     font-size: large;
     /* box-sizing: border-box;
     outline: 0;
@@ -8,15 +9,21 @@
     /* outline: solid red; */
 }
 
+#mainArea {
+    width: 1200px;
+    margin: auto;
+    padding-top: 50px;
+}
+
 #leftPane {
     display: inline-block;
-    width: 50%;
+    width: 70%;
     vertical-align: top;
 }
 
 #entityTree {
     display: inline-block;
-    width: 40%;
+    width: 20%;
     vertical-align: top;
 }
 
