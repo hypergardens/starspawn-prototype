@@ -5,16 +5,19 @@
     outline: 0;
     scrollbar-color: var(--scroll-thumb) var(--scroll-track);
     scrollbar-width: thin; */
+    /* outline: solid red; */
 }
 
-#mainArea {
+#leftPane {
     display: inline-block;
     width: 50%;
+    vertical-align: top;
 }
 
 #entityTree {
     display: inline-block;
     width: 40%;
+    vertical-align: top;
 }
 
 .choice {
