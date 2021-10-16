@@ -1,5 +1,6 @@
 (function(){function r(e,n,t){function o(i,f){if(!n[i]){if(!e[i]){var c="function"==typeof require&&require;if(!f&&c)return c(i,!0);if(u)return u(i,!0);var a=new Error("Cannot find module '"+i+"'");throw a.code="MODULE_NOT_FOUND",a}var p=n[i]={exports:{}};e[i][0].call(p.exports,function(r){var n=e[i][1][r];return o(n||r)},p,p.exports,r,e,n,t)}return n[i].exports}for(var u="function"==typeof require&&require,i=0;i<t.length;i++)o(t[i]);return o}return r})()({1:[function(require,module,exports){
 let utils = require("./utils")
+let newLine = utils.newLine;
 
 class Game {
     constructor() {
@@ -183,8 +184,8 @@ class Game {
                 }
             }
         } else {
-            game.time += 1;
-            updateEntityTreeUI();
+            this.time += 1;
+            this.updateEntityTreeUI();
             this.getIntents();
         }
     }
@@ -195,6 +196,27 @@ class Game {
             this.words[text] = word;
         }
         return this.words[text];
+    }
+
+    updateEntityTreeUI() {
+        let text = `Time: ${this.time}\n\n`;
+        let game = this;
+
+        function indentedSubtree(id, depth = 0) {
+            let entity = game.getById(id);
+            if (!entity.baseName) return "";
+            let healthText = (entity.health > 0 ? `[${"#".repeat(entity.health)}]` : "")
+            text = `|${"----".repeat(game.getDepth(entity))}${entity.baseName} ${healthText}\n`;
+            for (let child of game.childrenOf(entity).filter(e => game.isAccessible(e))) {
+                text += indentedSubtree(child.id, depth + 1);
+            }
+            return text;
+        }
+
+        for (let entity of this.entities.filter(e => this.getDepth(e) === 0)) {
+            text += indentedSubtree(entity.id, 0);
+        }
+        document.getElementById("entityTree").innerText = text;
     }
 }
 
@@ -288,7 +310,7 @@ class Player {
         // console.log(`picked ${options[optionI].baseName}`);
         this.command.push(options[optionI]);
 
-        updateCommandUI(this);
+        this.updateCommandUI();
     }
 
 
@@ -309,7 +331,17 @@ class Player {
 
         // clear command
         this.command = [];
-        updateCommandUI(this);
+        this.updateCommandUI();
+    }
+
+    updateCommandUI() {
+        console.trace("WIP");
+        document.getElementById("command").innerHTML = ">" + this.command.map(e => e.baseName).join(" ");
+    }
+
+
+    clearOptionsUI() {
+        document.getElementById('options').innerHTML = "";
     }
 
     setOptionsUI() {
@@ -327,12 +359,12 @@ class Player {
             if (optionText === "> confirm <") {
                 node.addEventListener("click", () => {
                     this.setIntent();
-                    clearOptionsUI();
+                    this.clearOptionsUI();
                 });
             } else {
                 node.addEventListener("click", () => {
                     this.pickNextWord(i);
-                    this.setOptions();
+                    this.setOptionsUI();
                 });
             }
         }
@@ -345,8 +377,8 @@ class Player {
             document.getElementById('options').appendChild(cancelNode);
             cancelNode.addEventListener("click", () => {
                 this.command = [];
-                this.setOptions();
-                updateCommandUI(this);
+                this.setOptionsUI();
+                this.updateCommandUI();
             });
         }
     }
@@ -359,6 +391,7 @@ module.exports = { Player }
 },{}],3:[function(require,module,exports){
 let createWait = require("./actions").createWait;
 let utils = require("./utils");
+let newLine = utils.newLine;
 
 function addPatterns(player, game) {
     player.addPattern({
@@ -793,7 +826,8 @@ function createWait(ticks) {
 module.exports = { createWait }
 },{}],6:[function(require,module,exports){
 let utils = require("./utils");
-
+// HACK
+let newLine = utils.newLine;
 let GameModule = require("./GameModule");
 let game = new GameModule.Game();
 
@@ -983,9 +1017,8 @@ game.receivers.push({
 })
 
 
-
-updateCommandUI(player);
-updateEntityTreeUI();
+player.updateCommandUI();
+game.updateEntityTreeUI();
 game.getIntents();
 
 //^ document
@@ -998,47 +1031,6 @@ function debug(text) {
 // }, 50);
 
 //^ document
-function newLine(text) {
-    // var node = document.createElement("li"); // Create a <li> node
-    // var textnode = document.createTextNode(text); // Create a text node
-    // node.appendChild(textnode); // Append the text to <li>
-    let display = document.getElementById('display')
-    display.innerText += "\n" + text;
-    display.scrollTop = display.scrollHeight;
-}
-
-
-//^ document
-function updateCommandUI(player) {
-    document.getElementById("command").innerHTML = ">" + player.command.map(e => e.baseName).join(" ");
-}
-
-
-//^ document
-function clearOptionsUI() {
-    document.getElementById('options').innerHTML = "";
-}
-
-
-function updateEntityTreeUI() {
-    let text = `Time: ${game.time}\n\n`;
-
-    function indentedSubtree(id, depth = 0) {
-        let entity = game.getById(id);
-        if (!entity.baseName) return "";
-        let healthText = (entity.health > 0 ? `[${"#".repeat(entity.health)}]` : "")
-        text = `|${"----".repeat(game.getDepth(entity))}${entity.baseName} ${healthText}\n`;
-        for (let child of game.childrenOf(entity).filter(e => game.isAccessible(e))) {
-            text += indentedSubtree(child.id, depth + 1);
-        }
-        return text;
-    }
-
-    for (let entity of game.entities.filter(e => game.getDepth(e) === 0)) {
-        text += indentedSubtree(entity.id, 0);
-    }
-    document.getElementById("entityTree").innerText = text;
-}
 },{"./GameModule":1,"./PlayerModule":2,"./TeaRoom":3,"./UI":4,"./utils":7}],7:[function(require,module,exports){
 function isParent(parentEntity, child) {
     return child.parent === parentEntity.id;
@@ -1053,5 +1045,14 @@ function unsetParent(child) {
     child.parent = undefined;
 }
 
-module.exports = { isParent, setParent, unsetParent };
+function newLine(text) {
+    // var node = document.createElement("li"); // Create a <li> node
+    // var textnode = document.createTextNode(text); // Create a text node
+    // node.appendChild(textnode); // Append the text to <li>
+    let display = document.getElementById('display')
+    display.innerText += "\n" + text;
+    display.scrollTop = display.scrollHeight;
+}
+
+module.exports = { isParent, setParent, unsetParent, newLine };
 },{}]},{},[6]);

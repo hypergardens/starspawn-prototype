@@ -1,4 +1,5 @@
 let utils = require("./utils")
+let newLine = utils.newLine;
 
 class Game {
     constructor() {
@@ -182,8 +183,8 @@ class Game {
                 }
             }
         } else {
-            game.time += 1;
-            updateEntityTreeUI();
+            this.time += 1;
+            this.updateEntityTreeUI();
             this.getIntents();
         }
     }
@@ -194,6 +195,27 @@ class Game {
             this.words[text] = word;
         }
         return this.words[text];
+    }
+
+    updateEntityTreeUI() {
+        let text = `Time: ${this.time}\n\n`;
+        let game = this;
+
+        function indentedSubtree(id, depth = 0) {
+            let entity = game.getById(id);
+            if (!entity.baseName) return "";
+            let healthText = (entity.health > 0 ? `[${"#".repeat(entity.health)}]` : "")
+            text = `|${"----".repeat(game.getDepth(entity))}${entity.baseName} ${healthText}\n`;
+            for (let child of game.childrenOf(entity).filter(e => game.isAccessible(e))) {
+                text += indentedSubtree(child.id, depth + 1);
+            }
+            return text;
+        }
+
+        for (let entity of this.entities.filter(e => this.getDepth(e) === 0)) {
+            text += indentedSubtree(entity.id, 0);
+        }
+        document.getElementById("entityTree").innerText = text;
     }
 }
 

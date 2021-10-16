@@ -1,5 +1,6 @@
 let createWait = require("./actions").createWait;
 let utils = require("./utils");
+let newLine = utils.newLine;
 
 function addPatterns(player, game) {
     player.addPattern({

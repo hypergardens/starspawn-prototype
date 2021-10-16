@@ -1,5 +1,6 @@
 let utils = require("./utils");
-
+// HACK
+let newLine = utils.newLine;
 let GameModule = require("./GameModule");
 let game = new GameModule.Game();
 
@@ -189,9 +190,8 @@ game.receivers.push({
 })
 
 
-
-updateCommandUI(player);
-updateEntityTreeUI();
+player.updateCommandUI();
+game.updateEntityTreeUI();
 game.getIntents();
 
 //^ document
@@ -204,44 +204,3 @@ function debug(text) {
 // }, 50);
 
 //^ document
-function newLine(text) {
-    // var node = document.createElement("li"); // Create a <li> node
-    // var textnode = document.createTextNode(text); // Create a text node
-    // node.appendChild(textnode); // Append the text to <li>
-    let display = document.getElementById('display')
-    display.innerText += "\n" + text;
-    display.scrollTop = display.scrollHeight;
-}
-
-
-//^ document
-function updateCommandUI(player) {
-    document.getElementById("command").innerHTML = ">" + player.command.map(e => e.baseName).join(" ");
-}
-
-
-//^ document
-function clearOptionsUI() {
-    document.getElementById('options').innerHTML = "";
-}
-
-
-function updateEntityTreeUI() {
-    let text = `Time: ${game.time}\n\n`;
-
-    function indentedSubtree(id, depth = 0) {
-        let entity = game.getById(id);
-        if (!entity.baseName) return "";
-        let healthText = (entity.health > 0 ? `[${"#".repeat(entity.health)}]` : "")
-        text = `|${"----".repeat(game.getDepth(entity))}${entity.baseName} ${healthText}\n`;
-        for (let child of game.childrenOf(entity).filter(e => game.isAccessible(e))) {
-            text += indentedSubtree(child.id, depth + 1);
-        }
-        return text;
-    }
-
-    for (let entity of game.entities.filter(e => game.getDepth(e) === 0)) {
-        text += indentedSubtree(entity.id, 0);
-    }
-    document.getElementById("entityTree").innerText = text;
-}

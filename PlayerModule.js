@@ -85,7 +85,7 @@ class Player {
         // console.log(`picked ${options[optionI].baseName}`);
         this.command.push(options[optionI]);
 
-        updateCommandUI(this);
+        this.updateCommandUI();
     }
 
 
@@ -106,7 +106,17 @@ class Player {
 
         // clear command
         this.command = [];
-        updateCommandUI(this);
+        this.updateCommandUI();
+    }
+
+    updateCommandUI() {
+        console.trace("WIP");
+        document.getElementById("command").innerHTML = ">" + this.command.map(e => e.baseName).join(" ");
+    }
+
+
+    clearOptionsUI() {
+        document.getElementById('options').innerHTML = "";
     }
 
     setOptionsUI() {
@@ -124,12 +134,12 @@ class Player {
             if (optionText === "> confirm <") {
                 node.addEventListener("click", () => {
                     this.setIntent();
-                    clearOptionsUI();
+                    this.clearOptionsUI();
                 });
             } else {
                 node.addEventListener("click", () => {
                     this.pickNextWord(i);
-                    this.setOptions();
+                    this.setOptionsUI();
                 });
             }
         }
@@ -142,8 +152,8 @@ class Player {
             document.getElementById('options').appendChild(cancelNode);
             cancelNode.addEventListener("click", () => {
                 this.command = [];
-                this.setOptions();
-                updateCommandUI(this);
+                this.setOptionsUI();
+                this.updateCommandUI();
             });
         }
     }
