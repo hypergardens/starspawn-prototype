@@ -206,6 +206,8 @@ class Game {
             if (!entity.baseName) return "";
             let healthText = (entity.health > 0 ? `[${"#".repeat(entity.health)}]` : "")
             text = `|${"----".repeat(game.getDepth(entity))}${entity.baseName} ${healthText}\n`;
+            if (entity.invisible) text = "";
+
             for (let child of game.childrenOf(entity).filter(e => game.isAccessible(e))) {
                 text += indentedSubtree(child.id, depth + 1);
             }

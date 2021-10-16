@@ -140,6 +140,7 @@ game.addEntity({
     type: "winBehaviourState",
     baseName: "winBehaviourState",
     won: false,
+    invisible: true,
     uberWon: false
 });
 
@@ -157,6 +158,8 @@ game.receivers.push({
 game.addEntity({
     baseName: "timer",
     type: "timer",
+
+    invisible: true,
     time: -1
 })
 
