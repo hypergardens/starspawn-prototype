@@ -6,6 +6,7 @@ let game = new GameModule.Game();
 
 let PlayerModule = require("./PlayerModule");
 let player = new PlayerModule.Player(game);
+game.player = player;
 
 let UI = require("./UI").UI
 let ui = new UI();
@@ -62,8 +63,6 @@ game.addEntity(smallerChest, chest);
 let evenSmallerChest = { baseName: "even smaller chest", closed: true };
 game.addEntity(evenSmallerChest, smallerChest);
 game.addEntity({ baseName: `SECRETIVE teabag`, item: true, flammable: true, infusable: true, flavour: "SECRET" }, evenSmallerChest);
-
-
 
 
 game.receivers.push({

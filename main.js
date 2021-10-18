@@ -13,6 +13,8 @@ class Game {
         this.queue = []; // [Action*]
         this.receivers = []; // {on_signalType:func()}
         this.time = 0;
+        this.focus = null;
+        this.player = null;
     }
 
     addEntity(entity, parentEntity = undefined) {
@@ -46,6 +48,7 @@ class Game {
         let contents = this.entities.filter(e => utils.isParent(entity, e));
         // if (contents.length > 0) console.log(contents)
         // console.log("children of", entity.baseName, contents)
+        // if (contents.length === 0) console.log({ entity, contents })
         return contents;
     }
 
@@ -78,8 +81,6 @@ class Game {
     }
 
     getIntents() {
-
-        this.updateUI();
         // get this tick's Actions {aedpcs} for every entity with intent (null or Intent)
         this.queue = [];
         this.intentsReady = true;
@@ -88,7 +89,7 @@ class Game {
             if (entity.intent === null || (entity.intent && entity.intent.sequence.length === 0)) {
                 this.intentsReady = false;
                 // hang and reset for player input
-                if (entity.player) {
+                if (entity.PLAYER) {
                     if (!entity.picking) {
                         entity.picking = true;
                         entity.setOptionsUI();
@@ -217,26 +218,43 @@ class Game {
         let hours = Math.floor(this.time / timing.tps / 3600)
         let minutes = Math.floor(this.time / timing.tps / 60)
         let seconds = Math.floor(this.time / timing.tps)
-        let text = `Time: ${hours}:${minutes}:${seconds}:${ticks}\n\n`;
         let game = this;
+        let treeNode = document.getElementById("entityTree");
+        treeNode.innerHTML = `Time: ${hours}:${minutes}:${seconds}:${ticks}\n\n</br>`;
 
-        function indentedSubtree(id, depth = 0) {
-            let entity = game.getById(id);
-            if (!entity.baseName) return "";
+        function indentedSubtree(entity, depth = 0) {
+            if (!entity.baseName || entity.invisible) return null;
             let healthText = (entity.health > 0 ? `[${"#".repeat(entity.health)}]` : "")
-            text = `|${"----".repeat(game.getDepth(entity))}${entity.baseName} ${healthText}\n`;
-            if (entity.invisible) text = "";
 
-            for (let child of game.childrenOf(entity).filter(e => game.isAccessible(e))) {
-                text += indentedSubtree(child.id, depth + 1);
+            let textNode = document.createElement("a");
+            // textNode.style.color = "lightgrey";
+            textNode.innerText = `|${"----".repeat(game.getDepth(entity))}${entity.baseName} ${healthText}\n`;
+            textNode.className = "treeObject";
+            if (game.childrenOf(entity).length > 0) {
+                for (let child of game.childrenOf(entity).filter(e => game.isAccessible(e))) {
+                    textNode.appendChild(indentedSubtree(child, depth + 1));
+                }
             }
-            return text;
+
+            // on click, focus action
+            textNode.addEventListener("click", function(e) {
+                e = window.event || e;
+                if (this === e.target) {
+                    game.focus = entity.id;
+                    game.player.command = [];
+                    game.player.setOptionsUI();
+                }
+            });
+
+            return textNode;
         }
 
         for (let entity of this.entities.filter(e => this.getDepth(e) === 0)) {
-            text += indentedSubtree(entity.id, 0);
+            let subtree = indentedSubtree(entity, 0);
+            if (subtree) {
+                treeNode.appendChild(subtree);
+            }
         }
-        document.getElementById("entityTree").innerText = text;
     }
 
     updateClockUI() {
@@ -292,13 +310,14 @@ module.exports = { Game };
 class Player {
     constructor(game) {
         this.baseName = "player";
-        this.player = true;
+        this.PLAYER = true;
         this.game = game;
         this.intent = null; // intent
         this.picking = false;
         this.command = [];
         this.patterns = [];
     }
+
 
     addPattern(pattern) {
         this.patterns.push(pattern);
@@ -316,19 +335,25 @@ class Player {
 
     //^ getAllIntents(), command
     getValidIntents() {
-        // get remaining Intents that match the command so far
+        // get remaining Intents that match the command and focus so far
         let validIntents = [];
         for (let intent of this.getAllIntents()) {
-            let valid = true;
+            // check intent for command validity
+            let cmdValid = true;
             for (let i = 0; i < this.command.length; i++) {
                 if (intent.representation[i] !== this.command[i]) {
-                    // console.log(intent.representation[i].baseName, "invalid")
-                    valid = false;
-                } else {
-                    // console.log(intent.representation[i].baseName, "valid")
+                    cmdValid = false;
                 }
             }
-            if (valid) {
+
+            // check intent for focus validity, if any focus
+            let focusValid = this.game.focus ? false : true;
+            for (let entity of intent.representation) {
+                if (entity.id === this.game.focus) {
+                    focusValid = true;
+                }
+            }
+            if (cmdValid && focusValid) {
                 validIntents.push(intent);
             }
         }
@@ -377,6 +402,7 @@ class Player {
             this.setIntent();
         } else if (options[optionI].type === "cancel") {
             this.command = [];
+            this.game.focus = null;
         } else {
             this.command.push(options[optionI]);
         }
@@ -405,7 +431,7 @@ class Player {
                 // set intent, not picking
                 this.intent = intent;
                 this.picking = false;
-
+                this.game.focus = null;
                 // clear command
                 this.command = [];
                 this.updateCommandUI();
@@ -953,6 +979,7 @@ let game = new GameModule.Game();
 
 let PlayerModule = require("./PlayerModule");
 let player = new PlayerModule.Player(game);
+game.player = player;
 
 let UI = require("./UI").UI
 let ui = new UI();
@@ -1009,8 +1036,6 @@ game.addEntity(smallerChest, chest);
 let evenSmallerChest = { baseName: "even smaller chest", closed: true };
 game.addEntity(evenSmallerChest, smallerChest);
 game.addEntity({ baseName: `SECRETIVE teabag`, item: true, flammable: true, infusable: true, flavour: "SECRET" }, evenSmallerChest);
-
-
 
 
 game.receivers.push({

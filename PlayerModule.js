@@ -1,13 +1,14 @@
 class Player {
     constructor(game) {
         this.baseName = "player";
-        this.player = true;
+        this.PLAYER = true;
         this.game = game;
         this.intent = null; // intent
         this.picking = false;
         this.command = [];
         this.patterns = [];
     }
+
 
     addPattern(pattern) {
         this.patterns.push(pattern);
@@ -25,19 +26,25 @@ class Player {
 
     //^ getAllIntents(), command
     getValidIntents() {
-        // get remaining Intents that match the command so far
+        // get remaining Intents that match the command and focus so far
         let validIntents = [];
         for (let intent of this.getAllIntents()) {
-            let valid = true;
+            // check intent for command validity
+            let cmdValid = true;
             for (let i = 0; i < this.command.length; i++) {
                 if (intent.representation[i] !== this.command[i]) {
-                    // console.log(intent.representation[i].baseName, "invalid")
-                    valid = false;
-                } else {
-                    // console.log(intent.representation[i].baseName, "valid")
+                    cmdValid = false;
                 }
             }
-            if (valid) {
+
+            // check intent for focus validity, if any focus
+            let focusValid = this.game.focus ? false : true;
+            for (let entity of intent.representation) {
+                if (entity.id === this.game.focus) {
+                    focusValid = true;
+                }
+            }
+            if (cmdValid && focusValid) {
                 validIntents.push(intent);
             }
         }
@@ -86,6 +93,7 @@ class Player {
             this.setIntent();
         } else if (options[optionI].type === "cancel") {
             this.command = [];
+            this.game.focus = null;
         } else {
             this.command.push(options[optionI]);
         }
@@ -114,7 +122,7 @@ class Player {
                 // set intent, not picking
                 this.intent = intent;
                 this.picking = false;
-
+                this.game.focus = null;
                 // clear command
                 this.command = [];
                 this.updateCommandUI();

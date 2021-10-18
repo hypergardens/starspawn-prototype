@@ -27,6 +27,17 @@
     vertical-align: top;
 }
 
+.treeObject {
+    color: white;
+    background-color: darkslategray;
+}
+
+.treeObject:hover {
+    color: darkslategray;
+    background-color: white;
+    cursor: pointer;
+}
+
 .choice {
     display: inline-block;
     padding: .4em .5em;
@@ -39,6 +50,10 @@
     border-radius: 3px;
     cursor: pointer;
     background-color: darkslategray;
+}
+
+.choice:hover {
+    background-color: dodgerblue;
 }
 
 .confirm {
@@ -55,6 +70,10 @@
     background-color: rgb(33, 107, 23);
 }
 
+.confirm:hover {
+    background-color: rgb(18, 160, 42);
+}
+
 .cancel {
     display: inline-block;
     padding: .4em .5em;
@@ -69,14 +88,6 @@
     background-color: rgb(85, 37, 23);
 }
 
-.confirm:hover {
-    background-color: rgb(18, 160, 42);
-}
-
 .cancel:hover {
     background-color: rgb(179, 55, 55);
-}
-
-.choice:hover {
-    background-color: dodgerblue;
 }

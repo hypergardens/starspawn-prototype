@@ -1,5 +1,6 @@
 Player < Actor
     intent: Intent | null
+    focus: id
     addPattern(pattern)
     getAllIntents() -> Intent[]
         all intents for each of patterns[]
