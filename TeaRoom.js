@@ -4,7 +4,13 @@ let newLine = utils.newLine;
 
 function addPatterns(player, game) {
     player.addPattern({
-        durations: [{ baseName: "a bit", dur: 1 }, { baseName: "a while", dur: 10 }, { baseName: "a long time", dur: 20 }],
+        durations: [
+            { baseName: "1 tick", dur: 1 },
+            { baseName: "3 ticks", dur: 3 },
+            { baseName: "6 ticks", dur: 6 },
+            { baseName: "12 ticks", dur: 12 },
+            { baseName: "60 ticks", dur: 60 },
+        ],
         intents: function() {
             let intents = [];
             for (let duration of this.durations) {
@@ -56,6 +62,34 @@ function addPatterns(player, game) {
             intents.push({
                 representation: [game.word("DEBUG"), game.word("3 x ping.")],
                 sequence: [action(), action(), action()],
+            })
+            return intents;
+        }
+    })
+
+    player.addPattern({
+        intents: function() {
+            let intents = [];
+            // the sequence
+            intents.push({
+                representation: [game.word("DEBUG"), game.word("POW"), game.word("POW"), game.word("POW")],
+                sequence: [{
+                    effect: () => { newLine("POW POW POW!") },
+                }],
+            })
+            return intents;
+        }
+    })
+
+    player.addPattern({
+        intents: function() {
+            let intents = [];
+            // the sequence
+            intents.push({
+                representation: [game.word("DEBUG"), game.word("POW")],
+                sequence: [{
+                    effect: () => { newLine("POW!") },
+                }],
             })
             return intents;
         }

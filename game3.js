@@ -47,7 +47,6 @@ let cranberryTeabag = { baseName: `cranberry teabag`, item: true, flammable: tru
 // let cranberryTeabag = { baseName: `instant noodles`, item: true, flammable: true, infusable: true, flavour: "salty" };
 // game.addEntity(noodles, cupboard);
 game.addEntity(cranberryTeabag, cupboard);
-console.log("ct:", cranberryTeabag);
 let table = { baseName: "table", surface: true }
 game.addEntity(table, area);
 game.addEntity({ baseName: "cup", fluidContainer: true, item: true }, table);
@@ -112,10 +111,10 @@ game.receivers.push({
 game.receivers.push({
     on_tick: function(data) {
         for (let fluidContainer of game.entities.filter(e => e.fluidContainer)) {
-            for (let hotFluid of game.entities.filter(e => (
-                    e.fluid &&
-                    utils.isParent(fluidContainer, e) &&
-                    e.temperature > 23))) {
+            for (let hotFluid of game.entities.filter(hotFluid => (
+                    hotFluid.fluid &&
+                    utils.isParent(fluidContainer, hotFluid) &&
+                    hotFluid.temperature > 23))) {
                 let count = 0;
                 let prefix = "";
                 // if infusable in container and hot fluid
@@ -194,6 +193,16 @@ game.receivers.push({
     }
 })
 
+// keyboard mode
+let keys = "qwertyuiopasdfghjklzxcvbnm".split("");
+document.addEventListener('keypress', (event) => {
+    var name = event.key;
+    if (player.picking && keys.indexOf(name) !== -1) {
+        // alert(`pressed ${keys.indexOf(name)} of ${keys}`)
+        player.pickNextWord(keys.indexOf(name));
+        player.setOptionsUI();
+    }
+}, false);
 
 player.updateCommandUI();
 game.updateEntityTreeUI();

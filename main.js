@@ -1,6 +1,7 @@
 (function(){function r(e,n,t){function o(i,f){if(!n[i]){if(!e[i]){var c="function"==typeof require&&require;if(!f&&c)return c(i,!0);if(u)return u(i,!0);var a=new Error("Cannot find module '"+i+"'");throw a.code="MODULE_NOT_FOUND",a}var p=n[i]={exports:{}};e[i][0].call(p.exports,function(r){var n=e[i][1][r];return o(n||r)},p,p.exports,r,e,n,t)}return n[i].exports}for(var u="function"==typeof require&&require,i=0;i<t.length;i++)o(t[i]);return o}return r})()({1:[function(require,module,exports){
 let utils = require("./utils")
 let newLine = utils.newLine;
+let timing = require("./timing");
 
 class Game {
     constructor() {
@@ -77,6 +78,8 @@ class Game {
     }
 
     getIntents() {
+
+        this.updateUI();
         // get this tick's Actions {aedpcs} for every entity with intent (null or Intent)
         this.queue = [];
         this.intentsReady = true;
@@ -87,10 +90,16 @@ class Game {
                 // hang and reset for player input
                 if (entity.player) {
                     if (!entity.picking) {
-                        entity.setOptionsUI();
                         entity.picking = true;
+                        entity.setOptionsUI();
                     }
                     setTimeout(() => {
+                        // let options = entity.getNextWords();
+                        // if (entity.command.length > 0) {
+                        //     entity.pickNextWord(Math.floor(Math.random() * (options.length - 1)));
+                        // } else {
+                        //     entity.pickNextWord(Math.floor(Math.random() * options.length));
+                        // }
                         this.getIntents();
                     }, 100);
                 }
@@ -185,7 +194,7 @@ class Game {
             }
         } else {
             this.time += 1;
-            this.updateEntityTreeUI();
+            this.updateUI();
             this.getIntents();
         }
     }
@@ -198,8 +207,17 @@ class Game {
         return this.words[text];
     }
 
+    updateUI() {
+        this.updateEntityTreeUI();
+        this.updateClockUI();
+    }
+
     updateEntityTreeUI() {
-        let text = `Time: ${this.time}\n\n`;
+        let ticks = this.time % timing.tps;
+        let hours = Math.floor(this.time / timing.tps / 3600)
+        let minutes = Math.floor(this.time / timing.tps / 60)
+        let seconds = Math.floor(this.time / timing.tps)
+        let text = `Time: ${hours}:${minutes}:${seconds}:${ticks}\n\n`;
         let game = this;
 
         function indentedSubtree(id, depth = 0) {
@@ -220,11 +238,57 @@ class Game {
         }
         document.getElementById("entityTree").innerText = text;
     }
+
+    updateClockUI() {
+        let clock = document.getElementById("clock");
+        let ctx = clock.getContext("2d");
+        let width = clock.clientWidth;
+        let height = clock.clientHeight;
+        // ctx.stroke = "white";
+        ctx.clearRect(0, 0, width, height);
+        ctx.fillText(`${this.time}`, width / 2 - 6, height / 2 + 5);
+
+        // dots
+        ctx.save();
+        ctx.translate(width / 2, height / 2);
+        ctx.beginPath();
+        ctx.rotate(-Math.PI / 2);
+        for (let i = 0; i < 12; i++) {
+            ctx.moveTo(20, 0);
+            ctx.lineTo(25, 0);
+            ctx.rotate(2 * Math.PI / 12);
+        };
+        ctx.stroke();
+        ctx.restore();
+
+        // ticks
+        ctx.save();
+        ctx.translate(width / 2, height / 2);
+        ctx.beginPath();
+        ctx.rotate(-Math.PI / 2);
+        ctx.rotate(2 * Math.PI * (this.time) / timing.tps);
+        ctx.arc(10, 0, 2, 0, 2 * Math.PI);
+        ctx.stroke();
+        ctx.restore();
+
+        // seconds
+
+        // ticks
+        ctx.save();
+        ctx.translate(width / 2, height / 2);
+        ctx.beginPath();
+        ctx.rotate(-Math.PI / 2);
+        ctx.rotate(2 * Math.PI * this.time / timing.tps / 60);
+        ctx.moveTo(10, 0);
+        ctx.lineTo(25, 0);
+        ctx.stroke();
+        ctx.restore();
+    }
 }
 
 
 module.exports = { Game };
-},{"./utils":7}],2:[function(require,module,exports){
+},{"./timing":7,"./utils":8}],2:[function(require,module,exports){
 class Player {
     constructor(game) {
         this.baseName = "player";
@@ -279,13 +343,11 @@ class Player {
         let options = [];
         let validIntents = this.getValidIntents();
 
-        console.log(`${validIntents.length} valid commands at command.length ${this.command.length}`)
+        console.log(`${validIntents.length} valid commands at command ${this.command.map(w => w.baseName)}`)
         for (let intent of validIntents) {
-            // console.log(`studying ${intent.representation.map(e => e.baseName)}`);
-            // console.log(intent);
             // if the intent is the same length as the command, it can be confirmed
             if (intent.representation.length == this.command.length) {
-                options.push({ baseName: "> confirm <" })
+                options.push({ baseName: "> confirm <", type: "confirm" })
             } else {
                 let newOption = intent.representation[this.command.length];
                 let duplicateThing = false;
@@ -301,7 +363,9 @@ class Player {
                 }
             }
         }
-        console.log("options:", options)
+        if (this.command.length > 0) {
+            options.push({ baseName: "> cancel <", type: "cancel" })
+        }
         return options;
     }
 
@@ -309,8 +373,13 @@ class Player {
     //^ updateCommandUI()
     pickNextWord(optionI) {
         let options = this.getNextWords();
-        // console.log(`picked ${options[optionI].baseName}`);
-        this.command.push(options[optionI]);
+        if (options[optionI].type === "confirm") {
+            this.setIntent();
+        } else if (options[optionI].type === "cancel") {
+            this.command = [];
+        } else {
+            this.command.push(options[optionI]);
+        }
 
         this.updateCommandUI();
     }
@@ -321,23 +390,32 @@ class Player {
     setIntent() {
         // get valid intents
         let intents = this.getValidIntents();
-        if (intents.length !== 1) {
-            throw "EXECUTION ERROR, NOT ONE VALID ACTION"
+        // let intent = intents[0];
+        for (let intent of intents.filter(i => i.representation.length === this.command.length)) {
+            console.log({ intent, command: this.command });
+
+            let valid = true;
+            for (let i = 0; i < intent.representation.length; i++) {
+                if (intent.representation[i] !== this.command[i]) {
+                    console.log("EXECUTION WONK, NOT ONE VALID ACTION");
+                    valid = false;
+                }
+            }
+            if (valid) {
+                // set intent, not picking
+                this.intent = intent;
+                this.picking = false;
+
+                // clear command
+                this.command = [];
+                this.updateCommandUI();
+                return;
+            }
         }
-        let intent = intents[0];
-        console.log(`intending ${intent.representation.map(e => e.baseName)}`);
 
-        // set intent, not picking
-        this.intent = intent;
-        this.picking = false;
-
-        // clear command
-        this.command = [];
-        this.updateCommandUI();
     }
 
     updateCommandUI() {
-        console.trace("WIP");
         document.getElementById("command").innerHTML = ">" + this.command.map(e => e.baseName).join(" ");
     }
 
@@ -348,41 +426,45 @@ class Player {
 
     setOptionsUI() {
         document.getElementById('options').innerHTML = "";
+        if (!this.picking) return;
+
         // get the next words, and create an element for each on document
         let options = this.getNextWords();
+
+        let keys = "qwertyuiopasdfghjklzxcvbnm".split("");
+
         for (let i = 0; i < options.length; i++) {
             let optionText = options[i].baseName;
+
             // create a span with the optionText baseName
-            var node = document.createElement("a");
-            node.className = "choice";
-            node.innerText = optionText;
-            document.getElementById('options').appendChild(node);
+            var shortcutNode = document.createElement("a");
+            shortcutNode.style.color = "lightgrey";
+            shortcutNode.innerText = `${keys[i]}) `;
+
+            // keyboard shortcutNode
+            var optionNode = document.createElement("a");
+            optionNode.style.color = "white";
+            optionNode.innerText = optionText;
+
+            shortcutNode.appendChild(optionNode);
+            document.getElementById('options').appendChild(shortcutNode);
             // when the span is clicked, handle using that optionText
-            if (optionText === "> confirm <") {
-                node.addEventListener("click", () => {
-                    this.setIntent();
-                    this.clearOptionsUI();
-                });
+            // REFACTOR: bad
+
+            shortcutNode.addEventListener("click", () => {
+                this.pickNextWord(i);
+                this.setOptionsUI();
+            });
+
+            if (options[i].type === "confirm") {
+                shortcutNode.className = "confirm";
+            } else if (options[i].type === "cancel") {
+                shortcutNode.className = "cancel";
             } else {
-                node.addEventListener("click", () => {
-                    this.pickNextWord(i);
-                    this.setOptionsUI();
-                });
+                shortcutNode.className = "choice";
             }
         }
 
-        // create a cancel node if there's a command
-        if (this.command.length > 0) {
-            let cancelNode = document.createElement("a");
-            cancelNode.className = "cancel";
-            cancelNode.innerText = "cancel";
-            document.getElementById('options').appendChild(cancelNode);
-            cancelNode.addEventListener("click", () => {
-                this.command = [];
-                this.setOptionsUI();
-                this.updateCommandUI();
-            });
-        }
     }
 }
 
@@ -397,7 +479,13 @@ let newLine = utils.newLine;
 
 function addPatterns(player, game) {
     player.addPattern({
-        durations: [{ baseName: "a bit", dur: 1 }, { baseName: "a while", dur: 10 }, { baseName: "a long time", dur: 20 }],
+        durations: [
+            { baseName: "1 tick", dur: 1 },
+            { baseName: "3 ticks", dur: 3 },
+            { baseName: "6 ticks", dur: 6 },
+            { baseName: "12 ticks", dur: 12 },
+            { baseName: "60 ticks", dur: 60 },
+        ],
         intents: function() {
             let intents = [];
             for (let duration of this.durations) {
@@ -449,6 +537,34 @@ function addPatterns(player, game) {
             intents.push({
                 representation: [game.word("DEBUG"), game.word("3 x ping.")],
                 sequence: [action(), action(), action()],
+            })
+            return intents;
+        }
+    })
+
+    player.addPattern({
+        intents: function() {
+            let intents = [];
+            // the sequence
+            intents.push({
+                representation: [game.word("DEBUG"), game.word("POW"), game.word("POW"), game.word("POW")],
+                sequence: [{
+                    effect: () => { newLine("POW POW POW!") },
+                }],
+            })
+            return intents;
+        }
+    })
+
+    player.addPattern({
+        intents: function() {
+            let intents = [];
+            // the sequence
+            intents.push({
+                representation: [game.word("DEBUG"), game.word("POW")],
+                sequence: [{
+                    effect: () => { newLine("POW!") },
+                }],
             })
             return intents;
         }
@@ -809,7 +925,7 @@ function addPatterns(player, game) {
 }
 
 module.exports = { addPatterns }
-},{"./actions":5,"./utils":7}],4:[function(require,module,exports){
+},{"./actions":5,"./utils":8}],4:[function(require,module,exports){
 class UI {
 
     constructor() {}
@@ -818,15 +934,17 @@ class UI {
 
 module.exports = { UI }
 },{}],5:[function(require,module,exports){
+let timing = require("./timing");
+
 function createWait(ticks) {
     return {
         duration: ticks,
-        pause: 100,
+        pause: timing.mpt / Math.pow(ticks, 0.9),
     }
 }
 
 module.exports = { createWait }
-},{}],6:[function(require,module,exports){
+},{"./timing":7}],6:[function(require,module,exports){
 let utils = require("./utils");
 // HACK
 let newLine = utils.newLine;
@@ -876,7 +994,6 @@ let cranberryTeabag = { baseName: `cranberry teabag`, item: true, flammable: tru
 // let cranberryTeabag = { baseName: `instant noodles`, item: true, flammable: true, infusable: true, flavour: "salty" };
 // game.addEntity(noodles, cupboard);
 game.addEntity(cranberryTeabag, cupboard);
-console.log("ct:", cranberryTeabag);
 let table = { baseName: "table", surface: true }
 game.addEntity(table, area);
 game.addEntity({ baseName: "cup", fluidContainer: true, item: true }, table);
@@ -941,10 +1058,10 @@ game.receivers.push({
 game.receivers.push({
     on_tick: function(data) {
         for (let fluidContainer of game.entities.filter(e => e.fluidContainer)) {
-            for (let hotFluid of game.entities.filter(e => (
-                    e.fluid &&
-                    utils.isParent(fluidContainer, e) &&
-                    e.temperature > 23))) {
+            for (let hotFluid of game.entities.filter(hotFluid => (
+                    hotFluid.fluid &&
+                    utils.isParent(fluidContainer, hotFluid) &&
+                    hotFluid.temperature > 23))) {
                 let count = 0;
                 let prefix = "";
                 // if infusable in container and hot fluid
@@ -1023,6 +1140,16 @@ game.receivers.push({
     }
 })
 
+// keyboard mode
+let keys = "qwertyuiopasdfghjklzxcvbnm".split("");
+document.addEventListener('keypress', (event) => {
+    var name = event.key;
+    if (player.picking && keys.indexOf(name) !== -1) {
+        // alert(`pressed ${keys.indexOf(name)} of ${keys}`)
+        player.pickNextWord(keys.indexOf(name));
+        player.setOptionsUI();
+    }
+}, false);
 
 player.updateCommandUI();
 game.updateEntityTreeUI();
@@ -1041,7 +1168,12 @@ function debug(text) {
 // }, 50);
 
 //^ document
-},{"./GameModule":1,"./PlayerModule":2,"./TeaRoom":3,"./UI":4,"./utils":7}],7:[function(require,module,exports){
+},{"./GameModule":1,"./PlayerModule":2,"./TeaRoom":3,"./UI":4,"./utils":8}],7:[function(require,module,exports){
+module.exports = {
+    tps: 6,
+    mpt: 500
+}
+},{}],8:[function(require,module,exports){
 function isParent(parentEntity, child) {
     return child.parent === parentEntity.id;
 }

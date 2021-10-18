@@ -1,5 +1,6 @@
 let utils = require("./utils")
 let newLine = utils.newLine;
+let timing = require("./timing");
 
 class Game {
     constructor() {
@@ -76,6 +77,8 @@ class Game {
     }
 
     getIntents() {
+
+        this.updateUI();
         // get this tick's Actions {aedpcs} for every entity with intent (null or Intent)
         this.queue = [];
         this.intentsReady = true;
@@ -86,10 +89,16 @@ class Game {
                 // hang and reset for player input
                 if (entity.player) {
                     if (!entity.picking) {
-                        entity.setOptionsUI();
                         entity.picking = true;
+                        entity.setOptionsUI();
                     }
                     setTimeout(() => {
+                        // let options = entity.getNextWords();
+                        // if (entity.command.length > 0) {
+                        //     entity.pickNextWord(Math.floor(Math.random() * (options.length - 1)));
+                        // } else {
+                        //     entity.pickNextWord(Math.floor(Math.random() * options.length));
+                        // }
                         this.getIntents();
                     }, 100);
                 }
@@ -184,7 +193,7 @@ class Game {
             }
         } else {
             this.time += 1;
-            this.updateEntityTreeUI();
+            this.updateUI();
             this.getIntents();
         }
     }
@@ -197,8 +206,17 @@ class Game {
         return this.words[text];
     }
 
+    updateUI() {
+        this.updateEntityTreeUI();
+        this.updateClockUI();
+    }
+
     updateEntityTreeUI() {
-        let text = `Time: ${this.time}\n\n`;
+        let ticks = this.time % timing.tps;
+        let hours = Math.floor(this.time / timing.tps / 3600)
+        let minutes = Math.floor(this.time / timing.tps / 60)
+        let seconds = Math.floor(this.time / timing.tps)
+        let text = `Time: ${hours}:${minutes}:${seconds}:${ticks}\n\n`;
         let game = this;
 
         function indentedSubtree(id, depth = 0) {
@@ -218,6 +236,52 @@ class Game {
             text += indentedSubtree(entity.id, 0);
         }
         document.getElementById("entityTree").innerText = text;
+    }
+
+    updateClockUI() {
+        let clock = document.getElementById("clock");
+        let ctx = clock.getContext("2d");
+        let width = clock.clientWidth;
+        let height = clock.clientHeight;
+        // ctx.stroke = "white";
+        ctx.clearRect(0, 0, width, height);
+        ctx.fillText(`${this.time}`, width / 2 - 6, height / 2 + 5);
+
+        // dots
+        ctx.save();
+        ctx.translate(width / 2, height / 2);
+        ctx.beginPath();
+        ctx.rotate(-Math.PI / 2);
+        for (let i = 0; i < 12; i++) {
+            ctx.moveTo(20, 0);
+            ctx.lineTo(25, 0);
+            ctx.rotate(2 * Math.PI / 12);
+        };
+        ctx.stroke();
+        ctx.restore();
+
+        // ticks
+        ctx.save();
+        ctx.translate(width / 2, height / 2);
+        ctx.beginPath();
+        ctx.rotate(-Math.PI / 2);
+        ctx.rotate(2 * Math.PI * (this.time) / timing.tps);
+        ctx.arc(10, 0, 2, 0, 2 * Math.PI);
+        ctx.stroke();
+        ctx.restore();
+
+        // seconds
+
+        // ticks
+        ctx.save();
+        ctx.translate(width / 2, height / 2);
+        ctx.beginPath();
+        ctx.rotate(-Math.PI / 2);
+        ctx.rotate(2 * Math.PI * this.time / timing.tps / 60);
+        ctx.moveTo(10, 0);
+        ctx.lineTo(25, 0);
+        ctx.stroke();
+        ctx.restore();
     }
 }
 

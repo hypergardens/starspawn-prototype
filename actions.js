@@ -1,7 +1,9 @@
+let timing = require("./timing");
+
 function createWait(ticks) {
     return {
         duration: ticks,
-        pause: 100,
+        pause: timing.mpt / Math.pow(ticks, 0.9),
     }
 }
 

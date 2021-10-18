@@ -52,13 +52,11 @@ class Player {
         let options = [];
         let validIntents = this.getValidIntents();
 
-        console.log(`${validIntents.length} valid commands at command.length ${this.command.length}`)
+        console.log(`${validIntents.length} valid commands at command ${this.command.map(w => w.baseName)}`)
         for (let intent of validIntents) {
-            // console.log(`studying ${intent.representation.map(e => e.baseName)}`);
-            // console.log(intent);
             // if the intent is the same length as the command, it can be confirmed
             if (intent.representation.length == this.command.length) {
-                options.push({ baseName: "> confirm <" })
+                options.push({ baseName: "> confirm <", type: "confirm" })
             } else {
                 let newOption = intent.representation[this.command.length];
                 let duplicateThing = false;
@@ -74,7 +72,9 @@ class Player {
                 }
             }
         }
-        console.log("options:", options)
+        if (this.command.length > 0) {
+            options.push({ baseName: "> cancel <", type: "cancel" })
+        }
         return options;
     }
 
@@ -82,8 +82,13 @@ class Player {
     //^ updateCommandUI()
     pickNextWord(optionI) {
         let options = this.getNextWords();
-        // console.log(`picked ${options[optionI].baseName}`);
-        this.command.push(options[optionI]);
+        if (options[optionI].type === "confirm") {
+            this.setIntent();
+        } else if (options[optionI].type === "cancel") {
+            this.command = [];
+        } else {
+            this.command.push(options[optionI]);
+        }
 
         this.updateCommandUI();
     }
@@ -94,23 +99,32 @@ class Player {
     setIntent() {
         // get valid intents
         let intents = this.getValidIntents();
-        if (intents.length !== 1) {
-            throw "EXECUTION ERROR, NOT ONE VALID ACTION"
+        // let intent = intents[0];
+        for (let intent of intents.filter(i => i.representation.length === this.command.length)) {
+            console.log({ intent, command: this.command });
+
+            let valid = true;
+            for (let i = 0; i < intent.representation.length; i++) {
+                if (intent.representation[i] !== this.command[i]) {
+                    console.log("EXECUTION WONK, NOT ONE VALID ACTION");
+                    valid = false;
+                }
+            }
+            if (valid) {
+                // set intent, not picking
+                this.intent = intent;
+                this.picking = false;
+
+                // clear command
+                this.command = [];
+                this.updateCommandUI();
+                return;
+            }
         }
-        let intent = intents[0];
-        console.log(`intending ${intent.representation.map(e => e.baseName)}`);
 
-        // set intent, not picking
-        this.intent = intent;
-        this.picking = false;
-
-        // clear command
-        this.command = [];
-        this.updateCommandUI();
     }
 
     updateCommandUI() {
-        console.trace("WIP");
         document.getElementById("command").innerHTML = ">" + this.command.map(e => e.baseName).join(" ");
     }
 
@@ -121,41 +135,45 @@ class Player {
 
     setOptionsUI() {
         document.getElementById('options').innerHTML = "";
+        if (!this.picking) return;
+
         // get the next words, and create an element for each on document
         let options = this.getNextWords();
+
+        let keys = "qwertyuiopasdfghjklzxcvbnm".split("");
+
         for (let i = 0; i < options.length; i++) {
             let optionText = options[i].baseName;
+
             // create a span with the optionText baseName
-            var node = document.createElement("a");
-            node.className = "choice";
-            node.innerText = optionText;
-            document.getElementById('options').appendChild(node);
+            var shortcutNode = document.createElement("a");
+            shortcutNode.style.color = "lightgrey";
+            shortcutNode.innerText = `${keys[i]}) `;
+
+            // keyboard shortcutNode
+            var optionNode = document.createElement("a");
+            optionNode.style.color = "white";
+            optionNode.innerText = optionText;
+
+            shortcutNode.appendChild(optionNode);
+            document.getElementById('options').appendChild(shortcutNode);
             // when the span is clicked, handle using that optionText
-            if (optionText === "> confirm <") {
-                node.addEventListener("click", () => {
-                    this.setIntent();
-                    this.clearOptionsUI();
-                });
+            // REFACTOR: bad
+
+            shortcutNode.addEventListener("click", () => {
+                this.pickNextWord(i);
+                this.setOptionsUI();
+            });
+
+            if (options[i].type === "confirm") {
+                shortcutNode.className = "confirm";
+            } else if (options[i].type === "cancel") {
+                shortcutNode.className = "cancel";
             } else {
-                node.addEventListener("click", () => {
-                    this.pickNextWord(i);
-                    this.setOptionsUI();
-                });
+                shortcutNode.className = "choice";
             }
         }
 
-        // create a cancel node if there's a command
-        if (this.command.length > 0) {
-            let cancelNode = document.createElement("a");
-            cancelNode.className = "cancel";
-            cancelNode.innerText = "cancel";
-            document.getElementById('options').appendChild(cancelNode);
-            cancelNode.addEventListener("click", () => {
-                this.command = [];
-                this.setOptionsUI();
-                this.updateCommandUI();
-            });
-        }
     }
 }
 
