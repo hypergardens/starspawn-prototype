@@ -226,9 +226,10 @@ class Game {
             if (!entity.baseName || entity.invisible) return null;
             let healthText = (entity.health > 0 ? `[${"#".repeat(entity.health)}]` : "")
 
+            let focusedText = (game.focus === entity.id) ? "(focused)" : "";
             let textNode = document.createElement("a");
             // textNode.style.color = "lightgrey";
-            textNode.innerText = `|${"----".repeat(game.getDepth(entity))}${entity.baseName} ${healthText}\n`;
+            textNode.innerText = `|${"----".repeat(game.getDepth(entity))}${entity.baseName} ${healthText}${focusedText}\n`;
             textNode.className = "treeObject";
             if (game.childrenOf(entity).length > 0) {
                 for (let child of game.childrenOf(entity).filter(e => game.isAccessible(e))) {
@@ -244,6 +245,7 @@ class Game {
                     game.player.command = [];
                     game.player.setOptionsUI();
                 }
+                game.updateEntityTreeUI();
             });
 
             return textNode;
