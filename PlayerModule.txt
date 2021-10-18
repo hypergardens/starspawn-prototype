@@ -1,0 +1,11 @@
+Player < Actor
+    intent: Intent | null
+    addPattern(pattern)
+    getAllIntents() -> Intent[]
+        all intents for each of patterns[]
+    getValidIntents() -> Intent[]
+        of getAllIntents(), return those that align with command[]
+    getNextWords() -> Word[]
+        each next word of getValidIntents()
+    pickNextWord(i)
+        getNextWords()[i] pushed to command[]

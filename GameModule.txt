@@ -1,0 +1,23 @@
+Game < Actor
+    entities: Entity[]
+
+loop:
+    1) getIntents() - hangs for input
+        start ready
+        for every Actor, get intent.
+            if duration on Action
+                duration--
+        if not ready, redo in 100ms
+
+    2) emitSignals() - instant
+        for every Action, propagate signal
+            set Action as propagated
+
+    3) executeNext() - instant if waiting on ewcs Action
+        if not empty:
+            get next Action
+                .condition -> .effect
+                executeNext(), with pause if any
+        if empty:
+            updateEntityTreeUI()
+            getIntents()

@@ -1,62 +1,33 @@
-next: event queueing
-
-Command: [Word*]
-
-
 Entity
     baseName: str 
     +- parent: ID
     +- rel: str
 
-Word < Entity
-
-Intent
-    representation: [Entity*]
-    sequence: [Action*]
-
-Actor
-    intent: null | Intent
-
-Pattern
-    intents() => [Intent*]
-
-Signal
-    type: str
-
 Action
-    +- actor: id
     +- effect: func*
     +- duration: int
     +- pause: int
     +- condition: func()
-    +- signals: [Signal*]
+    +- signals: Signal[]
 
-Core
-    queue: [Action*]
+Intent
+    representation: Entity[]
+    sequence: Action[]
 
-loop:
-    1) getIntent() - hangs for input
-        start ready
-        for every actor, get intent.
-            if duration
-                duration--
-        if not ready, redo in 100ms
-    2) emitSignals() - instant
-        start !ready
-        while not ready
-            set ready
-            for every Action, propagate signal
-                clear signals of action
-                queue extra Actions after emitter and unset "ready"
+Word < Entity
 
-    3) execute() - instant if waiting on ewcs Action
-        while not empty:
-            get next Action
-                if condition()
-                    if effect()
-                        do effect
-                if waiting, set timeout and run execute()
-        run getIntent()
+Command: Word[]
+
+Actor < Entity
+    intent: null | Intent
+
+Pattern
+    intents() => Intent[]
+
+Signal
+    type: str
+
+
 
 next steps:
     visible object tree

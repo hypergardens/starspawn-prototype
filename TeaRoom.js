@@ -401,7 +401,7 @@ function addPatterns(player, game) {
                     effect: () => {
                         newLine(`You tear out the ${entity.baseName}'s insides for 2 damage!`);
                         entity.health -= 2;
-                        game.emitSignal({ type: "damageDealt", by: player, to: entity });
+                        game.emitSignal({ type: "damageDealt", by: player, to: entity, amount: 2 });
                     },
                     signals: []
                 }

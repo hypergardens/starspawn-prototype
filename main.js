@@ -306,7 +306,7 @@ class Player {
     }
 
 
-    // updateCommandUI()
+    //^ updateCommandUI()
     pickNextWord(optionI) {
         let options = this.getNextWords();
         // console.log(`picked ${options[optionI].baseName}`);
@@ -794,7 +794,7 @@ function addPatterns(player, game) {
                     effect: () => {
                         newLine(`You tear out the ${entity.baseName}'s insides for 2 damage!`);
                         entity.health -= 2;
-                        game.emitSignal({ type: "damageDealt", by: player, to: entity });
+                        game.emitSignal({ type: "damageDealt", by: player, to: entity, amount: 2 });
                     },
                     signals: []
                 }
@@ -883,22 +883,24 @@ game.addEntity({ baseName: "cup", fluidContainer: true, item: true }, table);
 game.addEntity({ baseName: "bowl", fluidContainer: true, item: true }, table);
 let note = { baseName: "super secret note", note: { content: `It reads: "The password is 6 1 5"` } };
 game.addEntity(note, table);
+let stain = { baseName: "oily stain" };
+game.addEntity(stain, note);
 let chest = { baseName: "chest", closed: true, locked: true, lockedContainer: { password: `615` } };
 game.addEntity(chest, table);
 let smallerChest = { baseName: "smaller chest", closed: true };
 game.addEntity(smallerChest, chest);
 let evenSmallerChest = { baseName: "even smaller chest", closed: true };
 game.addEntity(evenSmallerChest, smallerChest);
-
 game.addEntity({ baseName: `SECRETIVE teabag`, item: true, flammable: true, infusable: true, flavour: "SECRET" }, evenSmallerChest);
+
 
 
 
 game.receivers.push({
     on_damageDealt: function(data) {
-        // newLine(`Damage dealt by ${data.by}`);
+        newLine(`Damage dealt by ${data.by.baseName}`);
         if (data.to.health <= 0) {
-            newLine(`You have defeated your first enemy, a vile ${data.to.baseName}.`);
+            newLine(`You have defeated your first enemy, a vile ${data.to.baseName}. It drops a teabag!`);
             data.to.baseName = `dead ${data.to.baseName}`;
             data.health = undefined;
             game.addEntity({ baseName: `VICTORIOUS teabag`, item: true, flammable: true, infusable: true, flavour: "VICTORY" }, data.to.parent);
@@ -1025,7 +1027,10 @@ game.receivers.push({
 player.updateCommandUI();
 game.updateEntityTreeUI();
 game.getIntents();
-
+// console.log({ "all intents": player.getAllIntents() });
+// for (let intent of player.getAllIntents()) {
+//     console.log(intent.representation.map(w => w.baseName))
+// }
 //^ document
 function debug(text) {
     document.getElementById("debug").innerText = text;

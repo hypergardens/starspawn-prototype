@@ -79,7 +79,7 @@ class Player {
     }
 
 
-    // updateCommandUI()
+    //^ updateCommandUI()
     pickNextWord(optionI) {
         let options = this.getNextWords();
         // console.log(`picked ${options[optionI].baseName}`);
