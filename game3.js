@@ -194,7 +194,7 @@ game.receivers.push({
 })
 
 // keyboard mode
-let keys = "qwertyuiopasdfghjklzxcvbnm".split("");
+let keys = "abcdefghijklmnopqrstuvwxyz".split("");
 document.addEventListener('keypress', (event) => {
     var name = event.key;
     if (player.picking && keys.indexOf(name) !== -1) {

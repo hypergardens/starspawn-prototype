@@ -431,7 +431,7 @@ class Player {
         // get the next words, and create an element for each on document
         let options = this.getNextWords();
 
-        let keys = "qwertyuiopasdfghjklzxcvbnm".split("");
+        let keys = "abcdefghijklmnopqrstuvwxyz".split("");
 
         for (let i = 0; i < options.length; i++) {
             let optionText = options[i].baseName;
@@ -1141,7 +1141,7 @@ game.receivers.push({
 })
 
 // keyboard mode
-let keys = "qwertyuiopasdfghjklzxcvbnm".split("");
+let keys = "abcdefghijklmnopqrstuvwxyz".split("");
 document.addEventListener('keypress', (event) => {
     var name = event.key;
     if (player.picking && keys.indexOf(name) !== -1) {
