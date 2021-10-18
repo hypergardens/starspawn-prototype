@@ -140,7 +140,7 @@ class Player {
         // get the next words, and create an element for each on document
         let options = this.getNextWords();
 
-        let keys = "abcdefghijklmnopqrstuvwxyz".split("");
+        let keys = "1234567890".split("");
 
         for (let i = 0; i < options.length; i++) {
             let optionText = options[i].baseName;
