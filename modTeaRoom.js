@@ -400,6 +400,107 @@ function loadMod(player, game) {
             return intents;
         }
     })
+
+
+    game.receivers.push({
+        on_damageDealt: function(data) {
+            newLine(`Damage dealt by ${data.by.baseName}`);
+            if (data.to.health <= 0 && !data.to.dead) {
+                data.to.dead = true;
+                newLine(`You have defeated your first enemy, a vile ${data.to.baseName}. It drops a teabag!`);
+                data.to.baseName = `dead ${data.to.baseName}`;
+                data.health = undefined;
+                game.addEntity({ baseName: `VICTORIOUS teabag`, item: true, flammable: true, infusable: true, flavour: "VICTORY" }, data.to.parent);
+            }
+        }
+    })
+
+    game.receivers.push({
+        on_tick: function(data) {
+            for (let stove of game.entities.filter(e => e.baseName === "stove")) {
+                if (stove.active) {
+                    stove.ctr += 1;
+                    if (stove.ctr >= 10) {
+                        stove.ctr = 0;
+                        newLine("The stove's flame burns a warm orange.")
+                    }
+                    for (let entityOnStove of game.entities.filter(e => (e.parent === stove.id))) {
+                        // newLine(`The stove heats up the ${entityOnStove.baseName}`)
+                        if (entityOnStove.fluidContainer) {
+                            for (let fluid of game.entities.filter(e => (e.fluid && game.isParent(entityOnStove, e)))) {
+                                // newLine(`The stove heats up the ${fluid.baseName} in the ${entityOnStove.baseName}`);
+                                fluid.temperature += 1;
+                                if (fluid.temperature == 23) {
+                                    newLine(`The ${entityOnStove.baseName} is filled with hot ${fluid.baseName}!`)
+                                }
+                            }
+                        }
+                        if (entityOnStove.flammable) {
+                            // newLine(`The ${entityOnStove.baseName} burns up`)
+                            // game.deleteById(entityOnStove.id);
+                        }
+                    }
+                }
+            }
+        }
+    });
+
+    game.receivers.push({
+        on_tick: function(data) {
+            for (let fluidContainer of game.entities.filter(e => e.fluidContainer)) {
+                for (let hotFluid of game.entities.filter(hotFluid => (
+                        hotFluid.fluid &&
+                        game.isParent(fluidContainer, hotFluid) &&
+                        hotFluid.temperature > 23))) {
+                    let count = 0;
+                    let prefix = "";
+                    // if infusable in container and hot fluid
+                    for (infusingTeabag of game.entities.filter(e => (
+                            e.infusable &&
+                            game.isParent(fluidContainer, e)))) {
+                        count += 1;
+                        prefix += `${infusingTeabag.flavour} `
+                        game.emitSignal({ type: "teaMade" });
+                        if (count < 3) {
+                            hotFluid.baseName = `${prefix} tea`;
+                        } else {
+                            hotFluid.baseName = `TURBO TESTER TEA`;
+                            newLine("TOTAL VICTORY ACHIEVED! Thanks for playing!");
+                        }
+                        console.log("hotFluid", hotFluid);
+                    }
+                }
+            }
+        }
+    })
+
+    game.addEntity({
+        type: "winBehaviourState",
+        baseName: "winBehaviourState",
+        won: false,
+        invisible: true,
+        uberWon: false
+    });
+
+    game.receivers.push({
+        on_teaMade: function(data) {
+            let state = game.entities.filter(e => e.type === "winBehaviourState")[0];
+            if (state.won === false) {
+                newLine(`Congratulations, you have made tea! Did you find all three teabags? I wonder what happens if you infuse them all at once...`)
+                state.won = true;
+            }
+        }
+    })
+
+
+    game.addEntity({
+        baseName: "timer",
+        type: "timer",
+
+        invisible: true,
+        time: -1
+    })
+
 }
 
 module.exports = { loadMod }
