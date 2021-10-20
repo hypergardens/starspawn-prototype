@@ -55,7 +55,7 @@ function loadMod(player, game) {
     game.actions.fillFrom = function(fluidSourceId, fluidContainerId) {
         let fluidSource = game.getById(fluidSourceId);
         let fluidContainer = game.getById(fluidContainerId);
-        let fluid = { baseName: fluidSource.fluid, fluid: true, temperature: fluidSource.temperature }
+        let fluid = { baseName: fluidSource.fluidSource, fluid: true, temperature: fluidSource.temperature }
         newLine(`You fill up the ${fluidContainer.baseName} from the ${fluidSource.baseName} with ${fluid.baseName}`)
         game.addEntity(fluid);
         utils.setParent(fluidContainer, fluid);
@@ -367,6 +367,40 @@ function loadMod(player, game) {
         }
     })
 
+    game.actions.sipFrom = function(containerId) {
+        let container = game.getById(containerId);
+        for (let fluid of game.getChildren(container).filter(e => e.fluid)) {
+            if (fluid.turboTea) {
+                newLine(`You feel like a 400 IQ, cupboard-opening, killing machine!`);
+            } else if (fluid.tea) {
+                newLine(`It's not too bad. It's... fine.`)
+            } else {
+                newLine(`It's important to stay hydrated, I guess.`)
+            }
+        }
+    }
+
+
+    player.addPattern({
+        intents: function() {
+            let intents = [];
+            for (let nonEmptyFluidContainer of game.entities.filter(e => fluidsIn(e))) {
+                intents.push({
+                    representation: [game.word("sip from"), nonEmptyFluidContainer],
+                    sequence: [
+                        createNewLineAction(`You sip from the ${nonEmptyFluidContainer.baseName}.`),
+                        createWaitAction(20),
+                        {
+                            func: "sipFrom",
+                            args: [nonEmptyFluidContainer.id]
+                        }
+                    ]
+                })
+            }
+            return intents;
+        }
+    })
+
     game.actions.readyClaws = function(targetId) {
         let target = game.getById(targetId);
         if (target.health === 5)
@@ -463,11 +497,15 @@ function loadMod(player, game) {
                         game.emitSignal({ type: "teaMade" });
                         if (count < 3) {
                             hotFluid.baseName = `${prefix} tea`;
+                            hotFluid.tea = true;
                         } else {
                             hotFluid.baseName = `TURBO TESTER TEA`;
-                            newLine("TOTAL VICTORY ACHIEVED! Thanks for playing!");
+                            if (!hotFluid.turboTea) {
+                                hotFluid.turboTea = true;
+                                newLine("TOTAL VICTORY ACHIEVED! Thanks for playing!");
+                            }
                         }
-                        console.log("hotFluid", hotFluid);
+                        // console.log("hotFluid", hotFluid);
                     }
                 }
             }

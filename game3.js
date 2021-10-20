@@ -35,37 +35,71 @@ class Teapot {
 // game.addEntity({ baseName: "shrine", shrine: true })
 // game.addEntity({ baseName: "crystal", inv: false, weight: 1 })
 // game.addEntity({ baseName: "boulder", weight: 10 })
-let area = { baseName: "tea room" };
-game.addEntity(area);
-game.addEntity(player, area);
-game.addEntity({ baseName: "stove", active: false, surface: true, heatSource: true, ctr: 0 }, area);
-game.addEntity({ baseName: "faucet", fluidSource: true, fluid: "water", temperature: 20 }, area);
-game.addEntity({ baseName: "punching bag", health: 5 }, area);
+let debug = true;
+if (!debug) {
 
-let cupboard = { baseName: "tea cupboard", closed: true };
-game.addEntity(cupboard, area);
-game.addEntity(new Teapot(), area);
+    let area = { baseName: "tea room" };
+    game.addEntity(area);
+    game.addEntity(player, area);
+    game.addEntity({ baseName: "stove", active: false, surface: true, heatSource: true, ctr: 0 }, area);
+    game.addEntity({ baseName: "faucet", fluidSource: "water", temperature: 20 }, area);
+    game.addEntity({ baseName: "punching bag", health: 5 }, area);
+    let cupboard = { baseName: "tea cupboard", closed: true };
+    game.addEntity(cupboard, area);
+    game.addEntity(new Teapot(), area);
+    let cranberryTeabag = { baseName: `cranberry teabag`, item: true, flammable: true, infusable: true, flavour: "OBVIOUS" };
+    // let cranberryTeabag = { baseName: `instant noodles`, item: true, flammable: true, infusable: true, flavour: "salty" };
+    // game.addEntity(noodles, cupboard);
+    game.addEntity(cranberryTeabag, cupboard);
+    let table = { baseName: "table", surface: true }
+    game.addEntity(table, area);
+    game.addEntity({ baseName: "cup", fluidContainer: true, item: true }, table);
+    game.addEntity({ baseName: "bowl", fluidContainer: true, item: true }, table);
+    let note = { baseName: "super secret note", note: { content: `"The password is 6 1 5..."` } };
+    game.addEntity(note, table);
+    let stain = { baseName: "oily stain" };
+    game.addEntity(stain, note);
+    let chest = { baseName: "chest", closed: true, locked: true, lockedContainer: { password: `615` } };
+    game.addEntity(chest, table);
+    let smallerChest = { baseName: "smaller chest", closed: true };
+    game.addEntity(smallerChest, chest);
 
-let cranberryTeabag = { baseName: `cranberry teabag`, item: true, flammable: true, infusable: true, flavour: "OBVIOUS" };
-// let cranberryTeabag = { baseName: `instant noodles`, item: true, flammable: true, infusable: true, flavour: "salty" };
-// game.addEntity(noodles, cupboard);
-game.addEntity(cranberryTeabag, cupboard);
-let table = { baseName: "table", surface: true }
-game.addEntity(table, area);
-game.addEntity({ baseName: "cup", fluidContainer: true, item: true }, table);
-game.addEntity({ baseName: "bowl", fluidContainer: true, item: true }, table);
-let note = { baseName: "super secret note", note: { content: `"The password is 6 1 5..."` } };
-game.addEntity(note, table);
-let stain = { baseName: "oily stain" };
-game.addEntity(stain, note);
-let chest = { baseName: "chest", closed: true, locked: true, lockedContainer: { password: `615` } };
-game.addEntity(chest, table);
-let smallerChest = { baseName: "smaller chest", closed: true };
-game.addEntity(smallerChest, chest);
-let evenSmallerChest = { baseName: "even smaller chest", closed: true };
-game.addEntity(evenSmallerChest, smallerChest);
-game.addEntity({ baseName: `SECRETIVE teabag`, item: true, flammable: true, infusable: true, flavour: "SECRET" }, evenSmallerChest);
+    let evenSmallerChest = { baseName: "even smaller chest", closed: true };
+    game.addEntity(evenSmallerChest, smallerChest);
+    game.addEntity({ baseName: `SECRETIVE teabag`, item: true, flammable: true, infusable: true, flavour: "SECRET" }, evenSmallerChest);
 
+} else {
+    let area = { baseName: "tea room" };
+    game.addEntity(area);
+    game.addEntity(player, area);
+    game.addEntity({ baseName: "stove", active: true, surface: true, heatSource: true, ctr: 0 }, area);
+    game.addEntity({ baseName: "faucet", fluidSource: "water", temperature: 20 }, area);
+    game.addEntity({ baseName: "punching bag", health: 5 }, area);
+    let cupboard = { baseName: "tea cupboard", closed: true };
+    game.addEntity(cupboard, area);
+    let teapot = new Teapot();
+    game.addEntity(teapot, area);
+    let cranberryTeabag = { baseName: `cranberry teabag`, item: true, flammable: true, infusable: true, flavour: "OBVIOUS" };
+    // let cranberryTeabag = { baseName: `instant noodles`, item: true, flammable: true, infusable: true, flavour: "salty" };
+    // game.addEntity(noodles, cupboard);
+    game.addEntity(cranberryTeabag, teapot);
+    let table = { baseName: "table", surface: true }
+    game.addEntity(table, area);
+    game.addEntity({ baseName: "cup", fluidContainer: true, item: true }, table);
+    game.addEntity({ baseName: "bowl", fluidContainer: true, item: true }, table);
+    let note = { baseName: "super secret note", note: { content: `"The password is 6 1 5..."` } };
+    game.addEntity(note, table);
+    let stain = { baseName: "oily stain" };
+    game.addEntity(stain, note);
+    let chest = { baseName: "chest", closed: true, locked: true, lockedContainer: { password: `615` } };
+    game.addEntity(chest, table);
+    let smallerChest = { baseName: "smaller chest", closed: true };
+    game.addEntity(smallerChest, chest);
+
+    let evenSmallerChest = { baseName: "even smaller chest", closed: true };
+    game.addEntity(evenSmallerChest, smallerChest);
+    game.addEntity({ baseName: `SECRETIVE teabag`, item: true, flammable: true, infusable: true, flavour: "SECRET" }, teapot);
+}
 
 
 
@@ -89,6 +123,6 @@ console.log({ "all intents": player.getAllIntents() });
 //     console.log({ intent })
 // }
 
-function debug(text) {
+function debugText(text) {
     document.getElementById("debug").innerText = text;
 }

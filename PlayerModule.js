@@ -60,7 +60,7 @@ class Player {
         let options = [];
         let validIntents = this.getValidIntents();
 
-        console.log(`${validIntents.length} valid commands at command ${this.command.map(w => w.baseName)}`)
+        // console.log(`${validIntents.length} valid commands at command ${this.command.map(w => w.baseName)}`)
         for (let intent of validIntents) {
             // if the intent is the same length as the command, it can be confirmed
             if (intent.representation.length == this.command.length) {

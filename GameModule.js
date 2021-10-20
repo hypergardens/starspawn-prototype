@@ -96,8 +96,8 @@ class Game {
         this.intentsReady = true;
         for (let entity of this.entities.filter(e => e.sequence)) {
             let sequence = entity.sequence;
-            console.log({ sequence })
-                // empty intent
+            // console.log({ sequence })
+            // empty intent
             if (!sequence || (sequence && sequence.length === 0)) {
                 this.intentsReady = false;
                 // hang and reset for player input
@@ -127,7 +127,7 @@ class Game {
                 while (ticks === 0 && i < sequence.length) {
                     let action = sequence[i];
                     this.enqueue(action);
-                    console.log(`queued up`, action);
+                    // console.log(`queued up`, action);
 
                     // queue up actions including the first with duration
                     if (action.duration <= 0 || action.duration === undefined) {
@@ -140,7 +140,7 @@ class Game {
                         if (action.duration <= 1) {
                             sequence.splice(i, 1);
                         }
-                        console.log(`action with ${ticks} duration`, action);
+                        // console.log(`action with ${ticks} duration`, action);
                         // TODO: make multiple intent declarations possible per tick?
                         action.duration -= 1;
                     } else {
@@ -169,7 +169,6 @@ class Game {
                     // new signal to propagate
                     this.signalsReady = false
                     let type = signal.type;
-                    console.log("propagating", type);
                     // send to every receiver
                     for (let receiver of this.receivers) {
                         if (receiver[`on_${type}`]) {
@@ -181,8 +180,6 @@ class Game {
                 action.propagated = true;
             }
         }
-        console.log("done propagating signals. queue:");
-        console.log(this.queue);
         // reset propagation for actions with duration
         for (let action of this.queue.filter(a => a.propagated === true)) {
             action.propagated = false;
@@ -195,7 +192,6 @@ class Game {
         // get next action to execute
         if (this.queue.length > 0) {
             let action = this.queue.shift();
-            console.log("executing", action);
             if (action.func) {
                 if (this.actions[action.func]) {
                     let func = this.actions[action.func];

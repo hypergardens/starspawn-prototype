@@ -97,8 +97,8 @@ class Game {
         this.intentsReady = true;
         for (let entity of this.entities.filter(e => e.sequence)) {
             let sequence = entity.sequence;
-            console.log({ sequence })
-                // empty intent
+            // console.log({ sequence })
+            // empty intent
             if (!sequence || (sequence && sequence.length === 0)) {
                 this.intentsReady = false;
                 // hang and reset for player input
@@ -128,7 +128,7 @@ class Game {
                 while (ticks === 0 && i < sequence.length) {
                     let action = sequence[i];
                     this.enqueue(action);
-                    console.log(`queued up`, action);
+                    // console.log(`queued up`, action);
 
                     // queue up actions including the first with duration
                     if (action.duration <= 0 || action.duration === undefined) {
@@ -141,7 +141,7 @@ class Game {
                         if (action.duration <= 1) {
                             sequence.splice(i, 1);
                         }
-                        console.log(`action with ${ticks} duration`, action);
+                        // console.log(`action with ${ticks} duration`, action);
                         // TODO: make multiple intent declarations possible per tick?
                         action.duration -= 1;
                     } else {
@@ -170,7 +170,6 @@ class Game {
                     // new signal to propagate
                     this.signalsReady = false
                     let type = signal.type;
-                    console.log("propagating", type);
                     // send to every receiver
                     for (let receiver of this.receivers) {
                         if (receiver[`on_${type}`]) {
@@ -182,8 +181,6 @@ class Game {
                 action.propagated = true;
             }
         }
-        console.log("done propagating signals. queue:");
-        console.log(this.queue);
         // reset propagation for actions with duration
         for (let action of this.queue.filter(a => a.propagated === true)) {
             action.propagated = false;
@@ -196,7 +193,6 @@ class Game {
         // get next action to execute
         if (this.queue.length > 0) {
             let action = this.queue.shift();
-            console.log("executing", action);
             if (action.func) {
                 if (this.actions[action.func]) {
                     let func = this.actions[action.func];
@@ -394,7 +390,7 @@ class Player {
         let options = [];
         let validIntents = this.getValidIntents();
 
-        console.log(`${validIntents.length} valid commands at command ${this.command.map(w => w.baseName)}`)
+        // console.log(`${validIntents.length} valid commands at command ${this.command.map(w => w.baseName)}`)
         for (let intent of validIntents) {
             // if the intent is the same length as the command, it can be confirmed
             if (intent.representation.length == this.command.length) {
@@ -570,136 +566,71 @@ class Teapot {
 // game.addEntity({ baseName: "shrine", shrine: true })
 // game.addEntity({ baseName: "crystal", inv: false, weight: 1 })
 // game.addEntity({ baseName: "boulder", weight: 10 })
-let area = { baseName: "tea room" };
-game.addEntity(area);
-game.addEntity(player, area);
-game.addEntity({ baseName: "stove", active: false, surface: true, heatSource: true, ctr: 0 }, area);
-game.addEntity({ baseName: "faucet", fluidSource: true, fluid: "water", temperature: 20 }, area);
-game.addEntity({ baseName: "punching bag", health: 5 }, area);
+let debug = true;
+if (!debug) {
 
-let cupboard = { baseName: "tea cupboard", closed: true };
-game.addEntity(cupboard, area);
-game.addEntity(new Teapot(), area);
+    let area = { baseName: "tea room" };
+    game.addEntity(area);
+    game.addEntity(player, area);
+    game.addEntity({ baseName: "stove", active: false, surface: true, heatSource: true, ctr: 0 }, area);
+    game.addEntity({ baseName: "faucet", fluidSource: "water", temperature: 20 }, area);
+    game.addEntity({ baseName: "punching bag", health: 5 }, area);
+    let cupboard = { baseName: "tea cupboard", closed: true };
+    game.addEntity(cupboard, area);
+    game.addEntity(new Teapot(), area);
+    let cranberryTeabag = { baseName: `cranberry teabag`, item: true, flammable: true, infusable: true, flavour: "OBVIOUS" };
+    // let cranberryTeabag = { baseName: `instant noodles`, item: true, flammable: true, infusable: true, flavour: "salty" };
+    // game.addEntity(noodles, cupboard);
+    game.addEntity(cranberryTeabag, cupboard);
+    let table = { baseName: "table", surface: true }
+    game.addEntity(table, area);
+    game.addEntity({ baseName: "cup", fluidContainer: true, item: true }, table);
+    game.addEntity({ baseName: "bowl", fluidContainer: true, item: true }, table);
+    let note = { baseName: "super secret note", note: { content: `"The password is 6 1 5..."` } };
+    game.addEntity(note, table);
+    let stain = { baseName: "oily stain" };
+    game.addEntity(stain, note);
+    let chest = { baseName: "chest", closed: true, locked: true, lockedContainer: { password: `615` } };
+    game.addEntity(chest, table);
+    let smallerChest = { baseName: "smaller chest", closed: true };
+    game.addEntity(smallerChest, chest);
 
-let cranberryTeabag = { baseName: `cranberry teabag`, item: true, flammable: true, infusable: true, flavour: "OBVIOUS" };
-// let cranberryTeabag = { baseName: `instant noodles`, item: true, flammable: true, infusable: true, flavour: "salty" };
-// game.addEntity(noodles, cupboard);
-game.addEntity(cranberryTeabag, cupboard);
-let table = { baseName: "table", surface: true }
-game.addEntity(table, area);
-game.addEntity({ baseName: "cup", fluidContainer: true, item: true }, table);
-game.addEntity({ baseName: "bowl", fluidContainer: true, item: true }, table);
-let note = { baseName: "super secret note", note: { content: `"The password is 6 1 5..."` } };
-game.addEntity(note, table);
-let stain = { baseName: "oily stain" };
-game.addEntity(stain, note);
-let chest = { baseName: "chest", closed: true, locked: true, lockedContainer: { password: `615` } };
-game.addEntity(chest, table);
-let smallerChest = { baseName: "smaller chest", closed: true };
-game.addEntity(smallerChest, chest);
-let evenSmallerChest = { baseName: "even smaller chest", closed: true };
-game.addEntity(evenSmallerChest, smallerChest);
-game.addEntity({ baseName: `SECRETIVE teabag`, item: true, flammable: true, infusable: true, flavour: "SECRET" }, evenSmallerChest);
+    let evenSmallerChest = { baseName: "even smaller chest", closed: true };
+    game.addEntity(evenSmallerChest, smallerChest);
+    game.addEntity({ baseName: `SECRETIVE teabag`, item: true, flammable: true, infusable: true, flavour: "SECRET" }, evenSmallerChest);
 
+} else {
+    let area = { baseName: "tea room" };
+    game.addEntity(area);
+    game.addEntity(player, area);
+    game.addEntity({ baseName: "stove", active: true, surface: true, heatSource: true, ctr: 0 }, area);
+    game.addEntity({ baseName: "faucet", fluidSource: "water", temperature: 20 }, area);
+    game.addEntity({ baseName: "punching bag", health: 5 }, area);
+    let cupboard = { baseName: "tea cupboard", closed: true };
+    game.addEntity(cupboard, area);
+    let teapot = new Teapot();
+    game.addEntity(teapot, area);
+    let cranberryTeabag = { baseName: `cranberry teabag`, item: true, flammable: true, infusable: true, flavour: "OBVIOUS" };
+    // let cranberryTeabag = { baseName: `instant noodles`, item: true, flammable: true, infusable: true, flavour: "salty" };
+    // game.addEntity(noodles, cupboard);
+    game.addEntity(cranberryTeabag, teapot);
+    let table = { baseName: "table", surface: true }
+    game.addEntity(table, area);
+    game.addEntity({ baseName: "cup", fluidContainer: true, item: true }, table);
+    game.addEntity({ baseName: "bowl", fluidContainer: true, item: true }, table);
+    let note = { baseName: "super secret note", note: { content: `"The password is 6 1 5..."` } };
+    game.addEntity(note, table);
+    let stain = { baseName: "oily stain" };
+    game.addEntity(stain, note);
+    let chest = { baseName: "chest", closed: true, locked: true, lockedContainer: { password: `615` } };
+    game.addEntity(chest, table);
+    let smallerChest = { baseName: "smaller chest", closed: true };
+    game.addEntity(smallerChest, chest);
 
-game.receivers.push({
-    on_damageDealt: function(data) {
-        newLine(`Damage dealt by ${data.by.baseName}`);
-        if (data.to.health <= 0 && !data.to.dead) {
-            data.to.dead = true;
-            newLine(`You have defeated your first enemy, a vile ${data.to.baseName}. It drops a teabag!`);
-            data.to.baseName = `dead ${data.to.baseName}`;
-            data.health = undefined;
-            game.addEntity({ baseName: `VICTORIOUS teabag`, item: true, flammable: true, infusable: true, flavour: "VICTORY" }, data.to.parent);
-        }
-    }
-})
-
-game.receivers.push({
-    on_tick: function(data) {
-        for (let stove of game.entities.filter(e => e.baseName === "stove")) {
-            if (stove.active) {
-                stove.ctr += 1;
-                if (stove.ctr >= 10) {
-                    stove.ctr = 0;
-                    newLine("The stove's flame burns a warm orange.")
-                }
-                for (let entityOnStove of game.entities.filter(e => (e.parent === stove.id))) {
-                    // newLine(`The stove heats up the ${entityOnStove.baseName}`)
-                    if (entityOnStove.fluidContainer) {
-                        for (let fluid of game.entities.filter(e => (e.fluid && game.isParent(entityOnStove, e)))) {
-                            // newLine(`The stove heats up the ${fluid.baseName} in the ${entityOnStove.baseName}`);
-                            fluid.temperature += 1;
-                            if (fluid.temperature == 23) {
-                                newLine(`The ${entityOnStove.baseName} is filled with hot ${fluid.baseName}!`)
-                            }
-                        }
-                    }
-                    if (entityOnStove.flammable) {
-                        // newLine(`The ${entityOnStove.baseName} burns up`)
-                        // game.deleteById(entityOnStove.id);
-                    }
-                }
-            }
-        }
-    }
-});
-
-game.receivers.push({
-    on_tick: function(data) {
-        for (let fluidContainer of game.entities.filter(e => e.fluidContainer)) {
-            for (let hotFluid of game.entities.filter(hotFluid => (
-                    hotFluid.fluid &&
-                    game.isParent(fluidContainer, hotFluid) &&
-                    hotFluid.temperature > 23))) {
-                let count = 0;
-                let prefix = "";
-                // if infusable in container and hot fluid
-                for (infusingTeabag of game.entities.filter(e => (
-                        e.infusable &&
-                        game.isParent(fluidContainer, e)))) {
-                    count += 1;
-                    prefix += `${infusingTeabag.flavour} `
-                    game.emitSignal({ type: "teaMade" });
-                    if (count < 3) {
-                        hotFluid.baseName = `${prefix} tea`;
-                    } else {
-                        hotFluid.baseName = `TURBO TESTER TEA`;
-                        newLine("TOTAL VICTORY ACHIEVED! Thanks for playing!");
-                    }
-                    console.log("hotFluid", hotFluid);
-                }
-            }
-        }
-    }
-})
-
-game.addEntity({
-    type: "winBehaviourState",
-    baseName: "winBehaviourState",
-    won: false,
-    invisible: true,
-    uberWon: false
-});
-
-game.receivers.push({
-    on_teaMade: function(data) {
-        let state = game.entities.filter(e => e.type === "winBehaviourState")[0];
-        if (state.won === false) {
-            newLine(`Congratulations, you have made tea! Did you find all three teabags? I wonder what happens if you infuse them all at once...`)
-            state.won = true;
-        }
-    }
-})
-
-
-game.addEntity({
-    baseName: "timer",
-    type: "timer",
-
-    invisible: true,
-    time: -1
-})
+    let evenSmallerChest = { baseName: "even smaller chest", closed: true };
+    game.addEntity(evenSmallerChest, smallerChest);
+    game.addEntity({ baseName: `SECRETIVE teabag`, item: true, flammable: true, infusable: true, flavour: "SECRET" }, teapot);
+}
 
 
 
@@ -723,7 +654,7 @@ console.log({ "all intents": player.getAllIntents() });
 //     console.log({ intent })
 // }
 
-function debug(text) {
+function debugText(text) {
     document.getElementById("debug").innerText = text;
 }
 },{"./GameModule":1,"./PlayerModule":2,"./UI":3,"./modTeaRoom":5,"./utils":7}],5:[function(require,module,exports){
@@ -784,7 +715,7 @@ function loadMod(player, game) {
     game.actions.fillFrom = function(fluidSourceId, fluidContainerId) {
         let fluidSource = game.getById(fluidSourceId);
         let fluidContainer = game.getById(fluidContainerId);
-        let fluid = { baseName: fluidSource.fluid, fluid: true, temperature: fluidSource.temperature }
+        let fluid = { baseName: fluidSource.fluidSource, fluid: true, temperature: fluidSource.temperature }
         newLine(`You fill up the ${fluidContainer.baseName} from the ${fluidSource.baseName} with ${fluid.baseName}`)
         game.addEntity(fluid);
         utils.setParent(fluidContainer, fluid);
@@ -1096,6 +1027,40 @@ function loadMod(player, game) {
         }
     })
 
+    game.actions.sipFrom = function(containerId) {
+        let container = game.getById(containerId);
+        for (let fluid of game.getChildren(container).filter(e => e.fluid)) {
+            if (fluid.turboTea) {
+                newLine(`You feel like a 400 IQ, cupboard-opening, killing machine!`);
+            } else if (fluid.tea) {
+                newLine(`It's not too bad. It's... fine.`)
+            } else {
+                newLine(`It's important to stay hydrated, I guess.`)
+            }
+        }
+    }
+
+
+    player.addPattern({
+        intents: function() {
+            let intents = [];
+            for (let nonEmptyFluidContainer of game.entities.filter(e => fluidsIn(e))) {
+                intents.push({
+                    representation: [game.word("sip from"), nonEmptyFluidContainer],
+                    sequence: [
+                        createNewLineAction(`You sip from the ${nonEmptyFluidContainer.baseName}.`),
+                        createWaitAction(20),
+                        {
+                            func: "sipFrom",
+                            args: [nonEmptyFluidContainer.id]
+                        }
+                    ]
+                })
+            }
+            return intents;
+        }
+    })
+
     game.actions.readyClaws = function(targetId) {
         let target = game.getById(targetId);
         if (target.health === 5)
@@ -1129,6 +1094,111 @@ function loadMod(player, game) {
             return intents;
         }
     })
+
+
+    game.receivers.push({
+        on_damageDealt: function(data) {
+            newLine(`Damage dealt by ${data.by.baseName}`);
+            if (data.to.health <= 0 && !data.to.dead) {
+                data.to.dead = true;
+                newLine(`You have defeated your first enemy, a vile ${data.to.baseName}. It drops a teabag!`);
+                data.to.baseName = `dead ${data.to.baseName}`;
+                data.health = undefined;
+                game.addEntity({ baseName: `VICTORIOUS teabag`, item: true, flammable: true, infusable: true, flavour: "VICTORY" }, data.to.parent);
+            }
+        }
+    })
+
+    game.receivers.push({
+        on_tick: function(data) {
+            for (let stove of game.entities.filter(e => e.baseName === "stove")) {
+                if (stove.active) {
+                    stove.ctr += 1;
+                    if (stove.ctr >= 10) {
+                        stove.ctr = 0;
+                        newLine("The stove's flame burns a warm orange.")
+                    }
+                    for (let entityOnStove of game.entities.filter(e => (e.parent === stove.id))) {
+                        // newLine(`The stove heats up the ${entityOnStove.baseName}`)
+                        if (entityOnStove.fluidContainer) {
+                            for (let fluid of game.entities.filter(e => (e.fluid && game.isParent(entityOnStove, e)))) {
+                                // newLine(`The stove heats up the ${fluid.baseName} in the ${entityOnStove.baseName}`);
+                                fluid.temperature += 1;
+                                if (fluid.temperature == 23) {
+                                    newLine(`The ${entityOnStove.baseName} is filled with hot ${fluid.baseName}!`)
+                                }
+                            }
+                        }
+                        if (entityOnStove.flammable) {
+                            // newLine(`The ${entityOnStove.baseName} burns up`)
+                            // game.deleteById(entityOnStove.id);
+                        }
+                    }
+                }
+            }
+        }
+    });
+
+    game.receivers.push({
+        on_tick: function(data) {
+            for (let fluidContainer of game.entities.filter(e => e.fluidContainer)) {
+                for (let hotFluid of game.entities.filter(hotFluid => (
+                        hotFluid.fluid &&
+                        game.isParent(fluidContainer, hotFluid) &&
+                        hotFluid.temperature > 23))) {
+                    let count = 0;
+                    let prefix = "";
+                    // if infusable in container and hot fluid
+                    for (infusingTeabag of game.entities.filter(e => (
+                            e.infusable &&
+                            game.isParent(fluidContainer, e)))) {
+                        count += 1;
+                        prefix += `${infusingTeabag.flavour} `
+                        game.emitSignal({ type: "teaMade" });
+                        if (count < 3) {
+                            hotFluid.baseName = `${prefix} tea`;
+                            hotFluid.tea = true;
+                        } else {
+                            hotFluid.baseName = `TURBO TESTER TEA`;
+                            if (!hotFluid.turboTea) {
+                                hotFluid.turboTea = true;
+                                newLine("TOTAL VICTORY ACHIEVED! Thanks for playing!");
+                            }
+                        }
+                        // console.log("hotFluid", hotFluid);
+                    }
+                }
+            }
+        }
+    })
+
+    game.addEntity({
+        type: "winBehaviourState",
+        baseName: "winBehaviourState",
+        won: false,
+        invisible: true,
+        uberWon: false
+    });
+
+    game.receivers.push({
+        on_teaMade: function(data) {
+            let state = game.entities.filter(e => e.type === "winBehaviourState")[0];
+            if (state.won === false) {
+                newLine(`Congratulations, you have made tea! Did you find all three teabags? I wonder what happens if you infuse them all at once...`)
+                state.won = true;
+            }
+        }
+    })
+
+
+    game.addEntity({
+        baseName: "timer",
+        type: "timer",
+
+        invisible: true,
+        time: -1
+    })
+
 }
 
 module.exports = { loadMod }
