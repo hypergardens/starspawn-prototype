@@ -1,0 +1,405 @@
+let utils = require("./utils");
+let newLine = utils.newLine;
+let timing = require("./timing");
+
+function loadMod(player, game) {
+
+    game.actions.newLine = utils.newLine;
+
+    game.actions.wait = function(ticks) {
+        // game.actions.newLine(`Still waiting... of ${ticks}`);
+    }
+
+    function createNewLineAction(text) {
+        return {
+            func: "newLine",
+            args: [text]
+        }
+    }
+
+    function createWaitAction(ticks) {
+        return {
+            func: "wait",
+            args: [ticks],
+            duration: ticks,
+            pause: timing.mpt / Math.pow(ticks, 1),
+        }
+    }
+
+    // wait various durations
+    player.patterns.push({
+        intents: () => {
+            let intents = [];
+            let durations = [
+                { baseName: "1 tick", dur: 1 },
+                { baseName: "3 ticks", dur: 3 },
+                { baseName: "6 ticks", dur: 6 },
+                // { baseName: "12 ticks", dur: 12 },
+                // { baseName: "60 ticks", dur: 60 },
+            ]
+            for (let duration of durations) {
+                let intent = {
+                    representation: [game.word("wait"), game.word(duration.baseName)],
+                    sequence: [
+                        createNewLineAction(`You wait ${duration.dur} ticks.`),
+                        createWaitAction(duration.dur)
+                    ]
+                }
+                intents.push(intent);
+            }
+            return intents;
+        }
+    });
+
+
+    game.actions.fillFrom = function(fluidSourceId, fluidContainerId) {
+        let fluidSource = game.getById(fluidSourceId);
+        let fluidContainer = game.getById(fluidContainerId);
+        let fluid = { baseName: fluidSource.fluid, fluid: true, temperature: fluidSource.temperature }
+        newLine(`You fill up the ${fluidContainer.baseName} from the ${fluidSource.baseName} with ${fluid.baseName}`)
+        game.addEntity(fluid);
+        utils.setParent(fluidContainer, fluid);
+    }
+
+    function fluidsIn(fluidContainer) {
+        let fluidChildren = game.getChildren(fluidContainer).filter(e => e.fluid);
+        return fluidChildren.length > 0;
+    }
+
+    // fill container from fluidSource
+    player.addPattern({
+        intents: function() {
+            let intents = [];
+            for (let fluidSource of game.entities.filter(e => e.fluidSource)) {
+                for (let nonEmptyFluidContainer of game.entities.filter(e => e.fluidContainer && !fluidsIn(e))) {
+                    intents.push({
+                        representation: [game.word("fill"), nonEmptyFluidContainer, game.word("from"), fluidSource],
+                        sequence: [
+                            createWaitAction(3),
+                            {
+                                func: "fillFrom",
+                                args: [fluidSource.id, nonEmptyFluidContainer.id],
+                                duration: 1,
+                            },
+                            createWaitAction(3)
+                        ],
+                    });
+                    // throw "HALT"
+                }
+            }
+            return intents;
+        }
+    });
+
+    game.actions.emptyContainer = function(containerId) {
+        let container = game.getById(containerId);
+        let containerParent = game.getById(container.parent);
+        newLine(`You empty the ${container.baseName} on the ${containerParent.baseName}.`);
+        for (let child of game.getChildrenById(containerId)) {
+            if (child.fluid) {
+                game.deleteById(child.id)
+            } else {
+                utils.setParent(containerParent, child)
+            }
+        }
+    }
+
+    player.addPattern({
+        // empty container
+        intents: function() {
+            let intents = [];
+            // nonempty fluid containers
+            for (let nonEmptyFluidContainer of game.entities.filter(e => e.fluidContainer && game.getChildren(e).length !== 0)) {
+                intents.push({
+                    representation: [game.word("empty"), nonEmptyFluidContainer],
+                    sequence: [
+                        createWaitAction(1),
+                        {
+                            func: "emptyContainer",
+                            args: [nonEmptyFluidContainer.id]
+                        },
+                        createWaitAction(1)
+                    ],
+                });
+            }
+            return intents;
+        }
+    });
+
+    game.actions.pourXintoY = function(sourceId, destinationId) {
+        let source = game.getById(sourceId);
+        let destination = game.getById(destinationId);
+
+        for (let child of game.getChildren(source)) {
+            newLine(`You pour the ${child.baseName} from the ${source.baseName} into the ${destination.baseName}.`);
+            utils.setParent(destination, child);
+        }
+    }
+
+    player.addPattern({
+        // pour X into Y
+        intents: function() {
+            let intents = [];
+            let isNonEmptyFluidContainer = (e => (e.fluidContainer && (game.getChildren(e).length !== 0)))
+            let isEmptyContainer = (e => (e.fluidContainer && !fluidsIn(e)))
+            for (let sourceContainer of game.entities.filter(isNonEmptyFluidContainer)) {
+                for (let destinationContainer of game.entities.filter(isEmptyContainer)) {
+                    intents.push({
+                        representation: [game.word("pour"), sourceContainer, game.word("into"), destinationContainer],
+                        sequence: [{
+                            func: "pourXintoY",
+                            args: [sourceContainer.id, destinationContainer.id]
+                        }]
+                    });
+                }
+            }
+            return intents;
+        }
+    });
+
+
+    game.actions.linkParent = function(parentId, childId, rel = null) {
+        let parent = game.getById(parentId);
+        let child = game.getById(childId);
+        utils.setParent(parent, child);
+        if (rel) {
+            child.rel = rel;
+        }
+    }
+
+    player.addPattern({
+        intents: function() {
+            let intents = [];
+            for (let entity of game.entities.filter(e => e.item && game.isAccessible(e))) {
+                for (let surface of game.entities.filter(e => e.surface)) {
+                    intents.push({
+                        representation: [game.word("put"), entity, game.word("on"), surface],
+                        sequence: [createNewLineAction(`You put the ${entity.baseName} on the ${surface.baseName}`), {
+                            func: "linkParent",
+                            args: [surface.id, entity.id, "on"]
+                        }],
+                    });
+                }
+            }
+            return intents;
+        }
+    });
+
+
+    player.addPattern({
+        intents: function() {
+            let intents = [];
+            for (let infusable of game.entities.filter(e => e.infusable && game.isAccessible(e))) {
+                for (let fluidContainer of game.entities.filter(e => e.fluidContainer)) {
+                    intents.push({
+                        representation: [game.word("put"), infusable, game.word("in"), fluidContainer],
+                        sequence: [{
+                            func: "linkParent",
+                            args: [fluidContainer.id, infusable.id, "in"]
+                        }]
+                    });
+                }
+            }
+            return intents;
+        }
+    });
+
+
+    game.actions.switchActive = function(switchableId) {
+        let switchable = game.getById(switchableId);
+        switchable.active = !switchable.active;
+    }
+
+    player.addPattern({
+        intents: function() {
+            let intents = [];
+            for (let entity of game.entities.filter(e => e.active !== undefined && e.active === false)) {
+                intents.push({
+                    representation: [game.word("turn on"), entity],
+                    sequence: [createNewLineAction(`You turn on the ${entity.baseName}`),
+                        {
+                            func: "switchActive",
+                            args: [entity.id]
+                        }
+                    ]
+                });
+            }
+            return intents;
+        }
+    });
+
+
+    player.addPattern({
+        intents: function() {
+            let intents = [];
+            for (let entity of game.entities.filter(e => e.active !== undefined && e.active === true)) {
+                intents.push({
+                    representation: [game.word("turn off"), entity],
+                    sequence: [createNewLineAction(`You turn off the ${entity.baseName}`),
+                        {
+                            func: "switchActive",
+                            args: [entity.id]
+                        }
+                    ]
+                });
+            }
+            return intents;
+        }
+    });
+
+
+    game.actions.tryUnlock = function(chestId, trialPassword) {
+        let chest = game.getById(chestId);
+        if (trialPassword === chest.lockedContainer.password) {
+            chest.locked = false;
+            newLine("The locks click open.")
+        } else {
+            newLine("Incorrect password.")
+        }
+    }
+
+    player.addPattern({
+        intents: function() {
+            let intents = [];
+            for (let chest of game.entities.filter(e => e.lockedContainer && e.locked && game.isAccessible(e))) {
+                for (let i0 = 0; i0 < 10; i0++) {
+                    for (let i1 = 0; i1 < 10; i1++) {
+                        for (let i2 = 0; i2 < 10; i2++) {
+                            // the sequence
+                            intents.push({
+                                representation: [game.word(`unlock`), chest, game.word(String(i0)), game.word(String(i1)), game.word(String(i2))],
+                                sequence: [{
+                                    func: "tryUnlock",
+                                    args: [chest.id, `${i0}${i1}${i2}`]
+                                }],
+                            })
+                        }
+                    }
+                }
+            }
+            return intents;
+        }
+    });
+
+    player.addPattern({
+        intents: function() {
+            let intents = [];
+            for (let entity of game.entities.filter(e => e.note)) {
+                // the sequence
+                intents.push({
+                    representation: [game.word(`read`), entity],
+                    sequence: [
+                        createNewLineAction("You read the note..."),
+                        createNewLineAction(`${entity.note.content}`)
+                    ]
+                })
+            }
+            return intents;
+        }
+    });
+
+
+    game.actions.tryOpen = function(entityId) {
+        let entity = game.getById(entityId);
+        if (entity.locked) {
+            newLine(`The ${entity.baseName} seems to be locked...`)
+        } else {
+            entity.closed = false;
+            newLine(`You open the ${entity.baseName}`);
+            newLine(`It contains: ${game.getChildren(entity).map(e => e.baseName).join(",")}`);
+        }
+    }
+    player.addPattern({
+        intents: function() {
+            let intents = [];
+            for (let entity of game.entities.filter(e => e.closed && game.isAccessible(e))) {
+                intents.push({
+                    representation: [game.word(`open`), entity],
+                    sequence: [{
+                        func: "tryOpen",
+                        args: [entity.id]
+                    }],
+                })
+            }
+            return intents;
+        }
+    });
+
+
+    game.actions.punch = function(attackerId, targetId) {
+        let attacker = game.getById(attackerId);
+        let target = game.getById(targetId);
+        let sounds = ["POW!", "Bam!", "Boom!", "Zock!"];
+        newLine(`You punch the ${target.baseName}! ${sounds[Math.floor(Math.random() * sounds.length)]}`);
+        if (target.health < 5) {
+            newLine(`Some fluff flies out of the ruptures. 1 damage!`);
+            target.health -= 1;
+            game.emitSignal({ type: "damageDealt", by: attacker, to: target });
+        }
+    }
+
+    player.addPattern({
+        intents: function() {
+            let intents = [];
+            for (let entity of game.entities.filter(e => e.health > 0)) {
+                intents.push({
+                    representation: [game.word("attack"), entity, game.word("with fists")],
+                    sequence: [createWaitAction(5),
+                        {
+                            func: "punch",
+                            args: [player.id, entity.id]
+                        },
+                        createWaitAction(2),
+                        {
+                            func: "punch",
+                            args: [player.id, entity.id]
+                        },
+                        createWaitAction(2),
+                        {
+                            func: "punch",
+                            args: [player.id, entity.id]
+                        },
+                        createWaitAction(2)
+                    ]
+                })
+            }
+            return intents;
+        }
+    })
+
+    game.actions.readyClaws = function(targetId) {
+        let target = game.getById(targetId);
+        if (target.health === 5)
+            newLine(`You let out a piercing shriek as you ready your razor-sharp, glassy claws!`);
+        else
+            newLine(`You ready your claws again!`);
+    }
+
+    game.actions.claw = function(attackerId, targetId) {
+        let attacker = game.getById(attackerId);
+        let target = game.getById(targetId);
+        newLine(`You tear out the ${target.baseName}'s insides for 2 damage!`);
+        target.health -= 2;
+        game.emitSignal({ type: "damageDealt", by: player, to: target, amount: 2 });
+    }
+
+
+    player.addPattern({
+        intents: function() {
+            let intents = [];
+            for (let target of game.entities.filter(e => e.health > 0)) {
+                intents.push({
+                    representation: [game.word("attack"), target, game.word("with claws")],
+                    sequence: [
+                        { func: "readyClaws", args: [target.id] },
+                        createWaitAction(10),
+                        { func: "claw", args: [player.id, target.id] },
+                    ]
+                })
+            }
+            return intents;
+        }
+    })
+}
+
+module.exports = { loadMod }

@@ -3,12 +3,17 @@ Entity
     +- parent: ID
     +- rel: str
 
+Signal
+    type: str
+    +- key: value
+
 Action
-    +- effect: func*
+    +- func: str
+    +- args: value[] 
     +- duration: int
     +- pause: int
-    +- condition: func()
     +- signals: Signal[]
+    +-- condition: func()
 
 Intent
     representation: Entity[]
@@ -23,6 +28,3 @@ Actor < Entity
 
 Pattern
     intents() => Intent[]
-
-Signal
-    type: str

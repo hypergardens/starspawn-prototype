@@ -1,7 +1,3 @@
-function isParent(parentEntity, child) {
-    return child.parent === parentEntity.id;
-}
-
 function setParent(parentEntity, child) {
     if (parentEntity === undefined || parentEntity.id === undefined) throw "Undefined parent."
     child.parent = parentEntity.id;
@@ -20,4 +16,4 @@ function newLine(text) {
     display.scrollTop = display.scrollHeight;
 }
 
-module.exports = { isParent, setParent, unsetParent, newLine };
+module.exports = { setParent, unsetParent, newLine };

@@ -1,1 +1,1 @@
-I was moving updateCommandUI in its right place, whtever that is
+in teaRoom.js, at the beginning, working on serialisable action queues

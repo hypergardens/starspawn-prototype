@@ -15,6 +15,9 @@ class Game {
         this.time = 0;
         this.focus = null;
         this.player = null;
+
+        // overhaul
+        this.actions = {};
     }
 
     addEntity(entity, parentEntity = undefined) {
@@ -44,8 +47,16 @@ class Game {
         return depth;
     }
 
-    childrenOf(entity) {
-        let contents = this.entities.filter(e => utils.isParent(entity, e));
+    isParent(parentEntity, childEntity) {
+        return childEntity.parent === parentEntity.id;
+    }
+
+    getChildrenById(id) {
+        return this.getChildren(this.getById(id));
+    }
+
+    getChildren(entity) {
+        let contents = this.entities.filter(e => this.isParent(entity, e));
         // if (contents.length > 0) console.log(contents)
         // console.log("children of", entity.baseName, contents)
         // if (contents.length === 0) console.log({ entity, contents })
@@ -84,30 +95,32 @@ class Game {
         // get this tick's Actions {aedpcs} for every entity with intent (null or Intent)
         this.queue = [];
         this.intentsReady = true;
-        for (let entity of this.entities) {
-            // empty intent
-            if (entity.intent === null || (entity.intent && entity.intent.sequence.length === 0)) {
+        for (let entity of this.entities.filter(e => e.sequence)) {
+            let sequence = entity.sequence;
+            console.log({ sequence })
+                // empty intent
+            if (!sequence || (sequence && sequence.length === 0)) {
                 this.intentsReady = false;
                 // hang and reset for player input
-                if (entity.PLAYER) {
+                if (entity.player) {
                     if (!entity.picking) {
                         entity.picking = true;
                         entity.setOptionsUI();
                     }
                     setTimeout(() => {
-                        // let options = entity.getNextWords();
-                        // if (entity.command.length > 0) {
-                        //     entity.pickNextWord(Math.floor(Math.random() * (options.length - 1)));
-                        // } else {
-                        //     entity.pickNextWord(Math.floor(Math.random() * options.length));
-                        // }
+                        let options = entity.getNextWords();
+                        if (false) {
+                            if (entity.command.length > 0) {
+                                entity.pickNextWord(Math.floor(Math.random() * (options.length - 1)));
+                            } else {
+                                entity.pickNextWord(Math.floor(Math.random() * options.length));
+                            }
+                        }
                         this.getIntents();
-                    }, 100);
+                    }, 30);
                 }
-            } else if (entity.intent) {
+            } else if (sequence.length > 0) {
                 // extract actions and enqueue them
-                let sequence = entity.intent.sequence;
-                if (!sequence || sequence.length === 0) throw `no sequence of actions on entity with intent`;
                 let ticks = 0;
                 let i = 0;
 
@@ -180,20 +193,30 @@ class Game {
     }
 
     executeNext() {
+        // get next action to execute
         if (this.queue.length > 0) {
             let action = this.queue.shift();
             console.log("executing", action);
-            if (action.condition === undefined || action.condition() === true) {
-                if (action.effect) {
-                    action.effect();
-                }
-                if (action.pause) {
-                    setTimeout(() => { this.executeNext() }, action.pause);
+            if (action.func) {
+                if (this.actions[action.func]) {
+                    let func = this.actions[action.func];
+                    if (action.args) {
+                        func(...action.args);
+                    } else {
+                        func();
+                    }
                 } else {
-                    this.executeNext();
+                    throw (`Unknown action ${action.func}, args ${action.args}`);
                 }
             }
+            // execute the next instantly or with pause
+            if (action.pause) {
+                setTimeout(() => { this.executeNext() }, action.pause);
+            } else {
+                this.executeNext();
+            }
         } else {
+            // loop again
             this.time += 1;
             this.updateUI();
             this.getIntents();
@@ -231,8 +254,8 @@ class Game {
             // textNode.style.color = "lightgrey";
             textNode.innerText = `|${"----".repeat(game.getDepth(entity))}${entity.baseName} ${healthText}${focusedText}\n`;
             textNode.className = "treeObject";
-            if (game.childrenOf(entity).length > 0) {
-                for (let child of game.childrenOf(entity).filter(e => game.isAccessible(e))) {
+            if (game.getChildren(entity).length > 0) {
+                for (let child of game.getChildren(entity).filter(e => game.isAccessible(e))) {
                     textNode.appendChild(indentedSubtree(child, depth + 1));
                 }
             }
@@ -308,13 +331,14 @@ class Game {
 
 
 module.exports = { Game };
-},{"./timing":7,"./utils":8}],2:[function(require,module,exports){
+},{"./timing":6,"./utils":7}],2:[function(require,module,exports){
 class Player {
     constructor(game) {
         this.baseName = "player";
-        this.PLAYER = true;
+        this.player = true;
         this.game = game;
         this.intent = null; // intent
+        this.sequence = [];
         this.picking = false;
         this.command = [];
         this.patterns = [];
@@ -418,20 +442,20 @@ class Player {
     setIntent() {
         // get valid intents
         let intents = this.getValidIntents();
-        // let intent = intents[0];
+        // from intents of command's length
         for (let intent of intents.filter(i => i.representation.length === this.command.length)) {
             console.log({ intent, command: this.command });
 
             let valid = true;
             for (let i = 0; i < intent.representation.length; i++) {
                 if (intent.representation[i] !== this.command[i]) {
-                    console.log("EXECUTION WONK, NOT ONE VALID ACTION");
+                    console.log("execution wonk, not one valid action");
                     valid = false;
                 }
             }
             if (valid) {
                 // set intent, not picking
-                this.intent = intent;
+                this.sequence = intent.sequence;
                 this.picking = false;
                 this.game.focus = null;
                 // clear command
@@ -459,7 +483,7 @@ class Player {
         // get the next words, and create an element for each on document
         let options = this.getNextWords();
 
-        let keys = "1234567890".split("");
+        let keys = "abcdefghijklmnopqrstuwxyz".split("");
 
         for (let i = 0; i < options.length; i++) {
             let optionText = options[i].baseName;
@@ -501,459 +525,6 @@ class Player {
 
 module.exports = { Player }
 },{}],3:[function(require,module,exports){
-let createWait = require("./actions").createWait;
-let utils = require("./utils");
-let newLine = utils.newLine;
-
-function addPatterns(player, game) {
-    player.addPattern({
-        durations: [
-            { baseName: "1 tick", dur: 1 },
-            { baseName: "3 ticks", dur: 3 },
-            { baseName: "6 ticks", dur: 6 },
-            { baseName: "12 ticks", dur: 12 },
-            { baseName: "60 ticks", dur: 60 },
-        ],
-        intents: function() {
-            let intents = [];
-            for (let duration of this.durations) {
-                function effect() {
-                    newLine(`You wait ${duration.baseName}`)
-                }
-                intents.push({
-                    representation: [game.word("wait"), game.word(duration.baseName)],
-                    sequence: [{ effect }, createWait(duration.dur)]
-                });
-            }
-            return intents;
-        }
-    });
-    // console.log("top")
-    // console.log(game.entities.filter(e => game.getDepth(e) === 0))
-    player.addPattern({
-        intents: function() {
-            let intents = [];
-            // the effect function
-            function effect() {
-                newLine("CLAP!")
-            }
-            // the sequence
-            intents.push({
-                representation: [game.word("DEBUG"), game.word("slow clap.")],
-                sequence: [createWait(4), effect, createWait(2), effect, effect, createWait(2), effect, effect, effect],
-                condition: function() {},
-            })
-            return intents;
-        }
-    })
-
-
-    player.addPattern({
-        intents: function() {
-            let intents = [];
-            // the effect function
-            function action() {
-                return {
-                    effect: () => { newLine("Ping!") },
-                    condition: () => true,
-                    pause: 0,
-                    signals: [{ type: "ping" }],
-                    duration: 0
-                }
-            }
-            // the sequence
-            intents.push({
-                representation: [game.word("DEBUG"), game.word("3 x ping.")],
-                sequence: [action(), action(), action()],
-            })
-            return intents;
-        }
-    })
-
-    player.addPattern({
-        intents: function() {
-            let intents = [];
-            // the sequence
-            intents.push({
-                representation: [game.word("DEBUG"), game.word("POW"), game.word("POW"), game.word("POW")],
-                sequence: [{
-                    effect: () => { newLine("POW POW POW!") },
-                }],
-            })
-            return intents;
-        }
-    })
-
-    player.addPattern({
-        intents: function() {
-            let intents = [];
-            // the sequence
-            intents.push({
-                representation: [game.word("DEBUG"), game.word("POW")],
-                sequence: [{
-                    effect: () => { newLine("POW!") },
-                }],
-            })
-            return intents;
-        }
-    })
-
-    player.addPattern({
-        intents: function() {
-            let intents = [];
-            // the effect function
-            function action() {
-                return {
-                    effect: () => { newLine("zing!") },
-                    condition: () => true,
-                    pause: 300,
-                    signals: [{ type: "ping" }],
-                    duration: 2,
-                }
-            }
-            // the sequence
-            intents.push({
-                representation: [game.word("DEBUG"), game.word("zing.")],
-                sequence: [action()],
-            })
-            return intents;
-        }
-    })
-
-
-    player.addPattern({
-        intents: function() {
-            let intents = [];
-            // the effect function
-            function action() {
-                return {
-                    effect: () => newLine("Waiting 3 ticks"),
-                }
-            }
-            // the sequence
-            intents.push({
-                representation: [game.word("DEBUG"), game.word("empty wait 3 ticks")],
-                sequence: [
-                    createWait(3),
-                ],
-            })
-            return intents;
-        }
-    })
-
-
-    player.addPattern({
-        // fill container from fluidSource
-        intents: function() {
-            let intents = [];
-            for (let fluidSource of game.entities.filter(e => e.fluidSource)) {
-                for (let container of game.entities.filter(e => e.fluidContainer)) {
-                    // check the container is empty, no fluids in container
-                    let fluidsInContainer = game.entities.filter(e => e.fluid && utils.isParent(container, e));
-                    // console.log("fluids", fluidsInContainer);
-                    if (fluidsInContainer.length === 0) {
-                        function effect() {
-                            let fluid = { baseName: fluidSource.fluid, fluid: true, temperature: fluidSource.temperature }
-                            newLine(`You fill up the ${container.baseName} from the ${fluidSource.baseName} with ${fluid.baseName}`)
-                            game.addEntity(fluid);
-                            utils.setParent(container, fluid);
-                        }
-                        intents.push({
-                            representation: [game.word("fill"), container, game.word("from"), fluidSource],
-                            sequence: [createWait(3), { effect }, createWait(3)],
-                            // condition: function() {
-                            //     return game.getById(fluidSource.id) && game.getById(container.id);
-                            // },
-                        });
-                    }
-                    // throw "HALT"
-                }
-            }
-            return intents;
-        }
-    });
-
-    player.addPattern({
-        // empty container
-        intents: function() {
-            let intents = [];
-            for (let container of game.entities.filter(e => e.fluidContainer)) {
-                if (game.childrenOf(container).length !== 0) {
-                    function effect() {
-                        newLine(`You empty the ${container.baseName}.`);
-                        for (let entity of game.entities) {
-                            if (utils.isParent(container, entity)) {
-                                console.log("deleting", entity);
-                                console.log("all entities")
-                                console.log(game.entities);
-                                game.deleteById(entity.id);
-                            }
-                        }
-                    }
-                    intents.push({
-                        representation: [game.word("empty"), container],
-                        sequence: [createWait(1), { effect }, createWait(1)],
-                    });
-                }
-            }
-            return intents;
-        }
-    });
-
-    player.addPattern({
-        // pour X into Y
-        intents: function() {
-            let intents = [];
-            let nonemptyContainer = (e => (e.fluidContainer && (game.childrenOf(e).length !== 0)))
-            let emptyContainer = (e => (e.fluidContainer && (game.childrenOf(e).filter(e => e.fluid).length === 0)))
-            for (let sourceContainer of game.entities.filter(nonemptyContainer)) {
-                for (let destinationContainer of game.entities.filter(emptyContainer)) {
-                    function effect() {
-                        for (let entity of game.entities) {
-                            if (utils.isParent(sourceContainer, entity)) {
-                                newLine(`You pour the ${entity.baseName} from the ${sourceContainer.baseName} into the ${destinationContainer.baseName}.`);
-                                utils.setParent(destinationContainer, entity);
-                            }
-                        }
-                    }
-                    intents.push({
-                        representation: [game.word("pour"), sourceContainer, game.word("into"), destinationContainer],
-                        sequence: [{ effect }]
-                    });
-                }
-            }
-            return intents;
-        }
-    });
-
-    player.addPattern({
-        intents: function() {
-            let intents = [];
-            for (let entity of game.entities.filter(e => e.item && game.isAccessible(e))) {
-                for (let surface of game.entities.filter(e => e.surface)) {
-                    function effect() {
-                        newLine(`You put the ${entity.baseName} on the ${surface.baseName}`);
-                        entity.parent = surface.id;
-                        entity.rel = "on";
-                        console.log(entity);
-                    }
-                    intents.push({
-                        representation: [game.word("put"), entity, game.word("on"), surface],
-                        sequence: [{ effect }],
-                    });
-                }
-            }
-            return intents;
-        }
-    });
-
-
-    player.addPattern({
-        intents: function() {
-            let intents = [];
-            for (let infusable of game.entities.filter(e => e.infusable && game.isAccessible(e))) {
-                for (let fluidContainer of game.entities.filter(e => e.fluidContainer)) {
-                    function effect() {
-                        newLine(`You put the ${infusable.baseName} in the ${fluidContainer.baseName} for infusing`);
-                        utils.setParent(fluidContainer, infusable);
-                    }
-                    intents.push({
-                        representation: [game.word("put"), infusable, game.word("in"), fluidContainer],
-                        sequence: [{ effect }]
-                    });
-                }
-            }
-            // return [];
-            return intents;
-        }
-    });
-
-    player.addPattern({
-        intents: function() {
-            let intents = [];
-            for (let entity of game.entities.filter(e => e.active !== undefined && e.active === false)) {
-                function effect() {
-                    entity.active = true;
-                    newLine(`You turn on the ${entity.baseName}`)
-                }
-                intents.push({
-                    representation: [game.word("turn on"), entity],
-                    sequence: [{ effect }]
-                });
-            }
-            return intents;
-        }
-    });
-
-    player.addPattern({
-        intents: function() {
-            let intents = [];
-            for (let entity of game.entities.filter(e => e.active !== undefined && e.active === true)) {
-                function effect() {
-                    entity.active = false;
-                    newLine(`You turn off the ${entity.baseName}`)
-                }
-                intents.push({
-                    representation: [game.word("turn off"), entity],
-                    sequence: [{ effect }],
-                });
-            }
-            // return [];
-            return intents;
-        }
-    });
-
-
-
-    // player.addPattern({
-    //     intents: function() {
-    //         let intents = [];
-    //         // TODO: if there is tea, drink the tea
-    //         intents.push({
-    //             representation: [game.word("Enjoy the lovely cup of tea")],
-    //             windup: 3,
-    //             winddown: 3,
-    //             condition: function() {},
-    //             effect: function() {
-    //                 newLine("You sip the cup of tea peacefully.")
-    //             }
-    //         });
-    //         return intents;
-    //     }
-    // })
-
-
-    player.addPattern({
-        intents: function() {
-            let intents = [];
-            for (let entity of game.entities.filter(e => e.lockedContainer && e.locked && game.isAccessible(e))) {
-                for (let i0 = 0; i0 < 10; i0++) {
-                    for (let i1 = 0; i1 < 10; i1++) {
-                        for (let i2 = 0; i2 < 10; i2++) {
-                            // the sequence
-                            function effect() {
-                                if (`${i0}${i1}${i2}` === entity.lockedContainer.password) {
-                                    entity.locked = false;
-                                    newLine("The locks click open.")
-                                } else {
-                                    newLine("Incorrect.")
-                                }
-                            }
-                            intents.push({
-                                representation: [game.word(`unlock`), entity, game.word(String(i0)), game.word(String(i1)), game.word(String(i2))],
-                                sequence: [{ effect }],
-                                condition: function() {},
-                            })
-                        }
-                    }
-                }
-            }
-            return intents;
-        }
-    });
-
-    player.addPattern({
-        intents: function() {
-            let intents = [];
-            for (let entity of game.entities.filter(e => e.note)) {
-                // the sequence
-                intents.push({
-                    representation: [game.word(`read`), entity],
-                    sequence: [{
-                        effect: () => {
-                            newLine("You read the note...");
-                            newLine(entity.note.content)
-                        }
-                    }],
-                })
-            }
-            return intents;
-        }
-    });
-
-    player.addPattern({
-        intents: function() {
-            let intents = [];
-            for (let entity of game.entities.filter(e => e.closed && game.isAccessible(e))) {
-                function effect() {
-                    if (entity.locked) {
-                        newLine(`The ${entity.baseName} seems to be locked...`)
-                    } else {
-                        entity.closed = false;
-                        newLine(`You open the ${entity.baseName}`);
-                        newLine(`It contains: ${game.childrenOf(entity).map(e => e.baseName).join(",")}`);
-                    }
-                }
-                intents.push({
-                    representation: [game.word(`open`), entity],
-                    sequence: [{ effect }],
-                })
-            }
-            return intents;
-        }
-    });
-
-    player.addPattern({
-        intents: function() {
-            let intents = [];
-            let sounds = ["POW!", "Bam!", "Boom!", "Zock!"];
-            for (let entity of game.entities.filter(e => e.health > 0)) {
-                function effect() {
-                    newLine(`You punch the ${entity.baseName}! ${sounds[Math.floor(Math.random() * sounds.length)]}`);
-                    if (entity.health < 5) {
-                        newLine(`Some fluff flies out of the ruptures. 1 damage!`);
-                        entity.health -= 1;
-                        game.emitSignal({ type: "damageDealt", by: player, to: entity });
-                    }
-                }
-                intents.push({
-                    representation: [game.word("attack"), entity, game.word("with fists")],
-                    sequence: [createWait(5), { effect }, createWait(2), { effect }, createWait(2), { effect }, createWait(2)]
-                })
-            }
-            return intents;
-        }
-    })
-
-    player.addPattern({
-        intents: function() {
-            let intents = [];
-            for (let entity of game.entities.filter(e => e.health > 0)) {
-                let action0 = {
-                    effect: () => {
-                        if (entity.health === 5)
-                            newLine(`You let out a piercing shriek as you ready your razor-sharp, glassy claws!`);
-                        else
-                            newLine(`You ready your claws again!`);
-                    }
-                }
-
-                let action1 = {
-                    effect: () => {
-                        newLine(`You dig your claws into the ${entity.baseName}!`);
-                    }
-                }
-
-                let action2 = {
-                    effect: () => {
-                        newLine(`You tear out the ${entity.baseName}'s insides for 2 damage!`);
-                        entity.health -= 2;
-                        game.emitSignal({ type: "damageDealt", by: player, to: entity, amount: 2 });
-                    },
-                    signals: []
-                }
-                intents.push({
-                    representation: [game.word("attack"), entity, game.word("with claws")],
-                    sequence: [createWait(5), action0, createWait(10), action1, createWait(10), action2, createWait(5)]
-                })
-            }
-            return intents;
-        }
-    })
-}
-
-module.exports = { addPatterns }
-},{"./actions":5,"./utils":8}],4:[function(require,module,exports){
 class UI {
 
     constructor() {}
@@ -961,18 +532,7 @@ class UI {
 }
 
 module.exports = { UI }
-},{}],5:[function(require,module,exports){
-let timing = require("./timing");
-
-function createWait(ticks) {
-    return {
-        duration: ticks,
-        pause: timing.mpt / Math.pow(ticks, 0.9),
-    }
-}
-
-module.exports = { createWait }
-},{"./timing":7}],6:[function(require,module,exports){
+},{}],4:[function(require,module,exports){
 let utils = require("./utils");
 // HACK
 let newLine = utils.newLine;
@@ -986,9 +546,11 @@ game.player = player;
 let UI = require("./UI").UI
 let ui = new UI();
 
-let teaRoomMod = require("./TeaRoom");
-teaRoomMod.addPatterns(player, game);
+let teaRoomMod = require("./modTeaRoom");
+teaRoomMod.loadMod(player, game);
 
+// let debugMod = require("./modDebug");
+// debugMod.loadMod(player, game);
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////  Patterns   ////////////////////////////////////////////////
@@ -1027,7 +589,7 @@ let table = { baseName: "table", surface: true }
 game.addEntity(table, area);
 game.addEntity({ baseName: "cup", fluidContainer: true, item: true }, table);
 game.addEntity({ baseName: "bowl", fluidContainer: true, item: true }, table);
-let note = { baseName: "super secret note", note: { content: `It reads: "The password is 6 1 5"` } };
+let note = { baseName: "super secret note", note: { content: `"The password is 6 1 5..."` } };
 game.addEntity(note, table);
 let stain = { baseName: "oily stain" };
 game.addEntity(stain, note);
@@ -1043,7 +605,8 @@ game.addEntity({ baseName: `SECRETIVE teabag`, item: true, flammable: true, infu
 game.receivers.push({
     on_damageDealt: function(data) {
         newLine(`Damage dealt by ${data.by.baseName}`);
-        if (data.to.health <= 0) {
+        if (data.to.health <= 0 && !data.to.dead) {
+            data.to.dead = true;
             newLine(`You have defeated your first enemy, a vile ${data.to.baseName}. It drops a teabag!`);
             data.to.baseName = `dead ${data.to.baseName}`;
             data.health = undefined;
@@ -1064,7 +627,7 @@ game.receivers.push({
                 for (let entityOnStove of game.entities.filter(e => (e.parent === stove.id))) {
                     // newLine(`The stove heats up the ${entityOnStove.baseName}`)
                     if (entityOnStove.fluidContainer) {
-                        for (let fluid of game.entities.filter(e => (e.fluid && utils.isParent(entityOnStove, e)))) {
+                        for (let fluid of game.entities.filter(e => (e.fluid && game.isParent(entityOnStove, e)))) {
                             // newLine(`The stove heats up the ${fluid.baseName} in the ${entityOnStove.baseName}`);
                             fluid.temperature += 1;
                             if (fluid.temperature == 23) {
@@ -1073,8 +636,8 @@ game.receivers.push({
                         }
                     }
                     if (entityOnStove.flammable) {
-                        newLine(`The ${entityOnStove.baseName} burns up`)
-                        game.deleteById(entityOnStove.id);
+                        // newLine(`The ${entityOnStove.baseName} burns up`)
+                        // game.deleteById(entityOnStove.id);
                     }
                 }
             }
@@ -1087,14 +650,14 @@ game.receivers.push({
         for (let fluidContainer of game.entities.filter(e => e.fluidContainer)) {
             for (let hotFluid of game.entities.filter(hotFluid => (
                     hotFluid.fluid &&
-                    utils.isParent(fluidContainer, hotFluid) &&
+                    game.isParent(fluidContainer, hotFluid) &&
                     hotFluid.temperature > 23))) {
                 let count = 0;
                 let prefix = "";
                 // if infusable in container and hot fluid
                 for (infusingTeabag of game.entities.filter(e => (
                         e.infusable &&
-                        utils.isParent(fluidContainer, e)))) {
+                        game.isParent(fluidContainer, e)))) {
                     count += 1;
                     prefix += `${infusingTeabag.flavour} `
                     game.emitSignal({ type: "teaMade" });
@@ -1138,37 +701,10 @@ game.addEntity({
     time: -1
 })
 
-game.receivers.push({
-    on_tick: function(data) {
-        for (let timer of game.entities.filter(e => e.type === "timer")) {
-            timer.time += 1;
-            // newLine(`Time: ${timer.time}`);
-        }
-    }
-})
 
-game.receivers.push({
-    on_ping: function(data) {
-        game.enqueue({
-            effect: () => newLine("Pong!"),
-            signals: [{ type: "pong" }],
-            pause: 300,
-        })
-    }
-})
-
-game.receivers.push({
-    on_pong: function(data) {
-        game.enqueue({
-            effect: () => newLine("Peng!"),
-            signals: [{ type: "peng" }],
-            pause: 300,
-        })
-    }
-})
 
 // keyboard mode
-let keys = "1234567890".split("");
+let keys = "abcdefghijklmnopqrstuwxyz".split("");
 document.addEventListener('keypress', (event) => {
     var name = event.key;
     if (player.picking && keys.indexOf(name) !== -1) {
@@ -1181,30 +717,427 @@ document.addEventListener('keypress', (event) => {
 player.updateCommandUI();
 game.updateEntityTreeUI();
 game.getIntents();
-// console.log({ "all intents": player.getAllIntents() });
+
+console.log({ "all intents": player.getAllIntents() });
 // for (let intent of player.getAllIntents()) {
-//     console.log(intent.representation.map(w => w.baseName))
+//     console.log({ intent })
 // }
-//^ document
+
 function debug(text) {
     document.getElementById("debug").innerText = text;
 }
+},{"./GameModule":1,"./PlayerModule":2,"./UI":3,"./modTeaRoom":5,"./utils":7}],5:[function(require,module,exports){
+let utils = require("./utils");
+let newLine = utils.newLine;
+let timing = require("./timing");
 
-// setInterval(() => {
-//     debug(`int: ${game.intentsReady}  sig: ${game.signalsReady}`);
-// }, 50);
+function loadMod(player, game) {
 
-//^ document
-},{"./GameModule":1,"./PlayerModule":2,"./TeaRoom":3,"./UI":4,"./utils":8}],7:[function(require,module,exports){
+    game.actions.newLine = utils.newLine;
+
+    game.actions.wait = function(ticks) {
+        // game.actions.newLine(`Still waiting... of ${ticks}`);
+    }
+
+    function createNewLineAction(text) {
+        return {
+            func: "newLine",
+            args: [text]
+        }
+    }
+
+    function createWaitAction(ticks) {
+        return {
+            func: "wait",
+            args: [ticks],
+            duration: ticks,
+            pause: timing.mpt / Math.pow(ticks, 1),
+        }
+    }
+
+    // wait various durations
+    player.patterns.push({
+        intents: () => {
+            let intents = [];
+            let durations = [
+                { baseName: "1 tick", dur: 1 },
+                { baseName: "3 ticks", dur: 3 },
+                { baseName: "6 ticks", dur: 6 },
+                // { baseName: "12 ticks", dur: 12 },
+                // { baseName: "60 ticks", dur: 60 },
+            ]
+            for (let duration of durations) {
+                let intent = {
+                    representation: [game.word("wait"), game.word(duration.baseName)],
+                    sequence: [
+                        createNewLineAction(`You wait ${duration.dur} ticks.`),
+                        createWaitAction(duration.dur)
+                    ]
+                }
+                intents.push(intent);
+            }
+            return intents;
+        }
+    });
+
+
+    game.actions.fillFrom = function(fluidSourceId, fluidContainerId) {
+        let fluidSource = game.getById(fluidSourceId);
+        let fluidContainer = game.getById(fluidContainerId);
+        let fluid = { baseName: fluidSource.fluid, fluid: true, temperature: fluidSource.temperature }
+        newLine(`You fill up the ${fluidContainer.baseName} from the ${fluidSource.baseName} with ${fluid.baseName}`)
+        game.addEntity(fluid);
+        utils.setParent(fluidContainer, fluid);
+    }
+
+    function fluidsIn(fluidContainer) {
+        let fluidChildren = game.getChildren(fluidContainer).filter(e => e.fluid);
+        return fluidChildren.length > 0;
+    }
+
+    // fill container from fluidSource
+    player.addPattern({
+        intents: function() {
+            let intents = [];
+            for (let fluidSource of game.entities.filter(e => e.fluidSource)) {
+                for (let nonEmptyFluidContainer of game.entities.filter(e => e.fluidContainer && !fluidsIn(e))) {
+                    intents.push({
+                        representation: [game.word("fill"), nonEmptyFluidContainer, game.word("from"), fluidSource],
+                        sequence: [
+                            createWaitAction(3),
+                            {
+                                func: "fillFrom",
+                                args: [fluidSource.id, nonEmptyFluidContainer.id],
+                                duration: 1,
+                            },
+                            createWaitAction(3)
+                        ],
+                    });
+                    // throw "HALT"
+                }
+            }
+            return intents;
+        }
+    });
+
+    game.actions.emptyContainer = function(containerId) {
+        let container = game.getById(containerId);
+        let containerParent = game.getById(container.parent);
+        newLine(`You empty the ${container.baseName} on the ${containerParent.baseName}.`);
+        for (let child of game.getChildrenById(containerId)) {
+            if (child.fluid) {
+                game.deleteById(child.id)
+            } else {
+                utils.setParent(containerParent, child)
+            }
+        }
+    }
+
+    player.addPattern({
+        // empty container
+        intents: function() {
+            let intents = [];
+            // nonempty fluid containers
+            for (let nonEmptyFluidContainer of game.entities.filter(e => e.fluidContainer && game.getChildren(e).length !== 0)) {
+                intents.push({
+                    representation: [game.word("empty"), nonEmptyFluidContainer],
+                    sequence: [
+                        createWaitAction(1),
+                        {
+                            func: "emptyContainer",
+                            args: [nonEmptyFluidContainer.id]
+                        },
+                        createWaitAction(1)
+                    ],
+                });
+            }
+            return intents;
+        }
+    });
+
+    game.actions.pourXintoY = function(sourceId, destinationId) {
+        let source = game.getById(sourceId);
+        let destination = game.getById(destinationId);
+
+        for (let child of game.getChildren(source)) {
+            newLine(`You pour the ${child.baseName} from the ${source.baseName} into the ${destination.baseName}.`);
+            utils.setParent(destination, child);
+        }
+    }
+
+    player.addPattern({
+        // pour X into Y
+        intents: function() {
+            let intents = [];
+            let isNonEmptyFluidContainer = (e => (e.fluidContainer && (game.getChildren(e).length !== 0)))
+            let isEmptyContainer = (e => (e.fluidContainer && !fluidsIn(e)))
+            for (let sourceContainer of game.entities.filter(isNonEmptyFluidContainer)) {
+                for (let destinationContainer of game.entities.filter(isEmptyContainer)) {
+                    intents.push({
+                        representation: [game.word("pour"), sourceContainer, game.word("into"), destinationContainer],
+                        sequence: [{
+                            func: "pourXintoY",
+                            args: [sourceContainer.id, destinationContainer.id]
+                        }]
+                    });
+                }
+            }
+            return intents;
+        }
+    });
+
+
+    game.actions.linkParent = function(parentId, childId, rel = null) {
+        let parent = game.getById(parentId);
+        let child = game.getById(childId);
+        utils.setParent(parent, child);
+        if (rel) {
+            child.rel = rel;
+        }
+    }
+
+    player.addPattern({
+        intents: function() {
+            let intents = [];
+            for (let entity of game.entities.filter(e => e.item && game.isAccessible(e))) {
+                for (let surface of game.entities.filter(e => e.surface)) {
+                    intents.push({
+                        representation: [game.word("put"), entity, game.word("on"), surface],
+                        sequence: [createNewLineAction(`You put the ${entity.baseName} on the ${surface.baseName}`), {
+                            func: "linkParent",
+                            args: [surface.id, entity.id, "on"]
+                        }],
+                    });
+                }
+            }
+            return intents;
+        }
+    });
+
+
+    player.addPattern({
+        intents: function() {
+            let intents = [];
+            for (let infusable of game.entities.filter(e => e.infusable && game.isAccessible(e))) {
+                for (let fluidContainer of game.entities.filter(e => e.fluidContainer)) {
+                    intents.push({
+                        representation: [game.word("put"), infusable, game.word("in"), fluidContainer],
+                        sequence: [{
+                            func: "linkParent",
+                            args: [fluidContainer.id, infusable.id, "in"]
+                        }]
+                    });
+                }
+            }
+            return intents;
+        }
+    });
+
+
+    game.actions.switchActive = function(switchableId) {
+        let switchable = game.getById(switchableId);
+        switchable.active = !switchable.active;
+    }
+
+    player.addPattern({
+        intents: function() {
+            let intents = [];
+            for (let entity of game.entities.filter(e => e.active !== undefined && e.active === false)) {
+                intents.push({
+                    representation: [game.word("turn on"), entity],
+                    sequence: [createNewLineAction(`You turn on the ${entity.baseName}`),
+                        {
+                            func: "switchActive",
+                            args: [entity.id]
+                        }
+                    ]
+                });
+            }
+            return intents;
+        }
+    });
+
+
+    player.addPattern({
+        intents: function() {
+            let intents = [];
+            for (let entity of game.entities.filter(e => e.active !== undefined && e.active === true)) {
+                intents.push({
+                    representation: [game.word("turn off"), entity],
+                    sequence: [createNewLineAction(`You turn off the ${entity.baseName}`),
+                        {
+                            func: "switchActive",
+                            args: [entity.id]
+                        }
+                    ]
+                });
+            }
+            return intents;
+        }
+    });
+
+
+    game.actions.tryUnlock = function(chestId, trialPassword) {
+        let chest = game.getById(chestId);
+        if (trialPassword === chest.lockedContainer.password) {
+            chest.locked = false;
+            newLine("The locks click open.")
+        } else {
+            newLine("Incorrect password.")
+        }
+    }
+
+    player.addPattern({
+        intents: function() {
+            let intents = [];
+            for (let chest of game.entities.filter(e => e.lockedContainer && e.locked && game.isAccessible(e))) {
+                for (let i0 = 0; i0 < 10; i0++) {
+                    for (let i1 = 0; i1 < 10; i1++) {
+                        for (let i2 = 0; i2 < 10; i2++) {
+                            // the sequence
+                            intents.push({
+                                representation: [game.word(`unlock`), chest, game.word(String(i0)), game.word(String(i1)), game.word(String(i2))],
+                                sequence: [{
+                                    func: "tryUnlock",
+                                    args: [chest.id, `${i0}${i1}${i2}`]
+                                }],
+                            })
+                        }
+                    }
+                }
+            }
+            return intents;
+        }
+    });
+
+    player.addPattern({
+        intents: function() {
+            let intents = [];
+            for (let entity of game.entities.filter(e => e.note)) {
+                // the sequence
+                intents.push({
+                    representation: [game.word(`read`), entity],
+                    sequence: [
+                        createNewLineAction("You read the note..."),
+                        createNewLineAction(`${entity.note.content}`)
+                    ]
+                })
+            }
+            return intents;
+        }
+    });
+
+
+    game.actions.tryOpen = function(entityId) {
+        let entity = game.getById(entityId);
+        if (entity.locked) {
+            newLine(`The ${entity.baseName} seems to be locked...`)
+        } else {
+            entity.closed = false;
+            newLine(`You open the ${entity.baseName}`);
+            newLine(`It contains: ${game.getChildren(entity).map(e => e.baseName).join(",")}`);
+        }
+    }
+    player.addPattern({
+        intents: function() {
+            let intents = [];
+            for (let entity of game.entities.filter(e => e.closed && game.isAccessible(e))) {
+                intents.push({
+                    representation: [game.word(`open`), entity],
+                    sequence: [{
+                        func: "tryOpen",
+                        args: [entity.id]
+                    }],
+                })
+            }
+            return intents;
+        }
+    });
+
+
+    game.actions.punch = function(attackerId, targetId) {
+        let attacker = game.getById(attackerId);
+        let target = game.getById(targetId);
+        let sounds = ["POW!", "Bam!", "Boom!", "Zock!"];
+        newLine(`You punch the ${target.baseName}! ${sounds[Math.floor(Math.random() * sounds.length)]}`);
+        if (target.health < 5) {
+            newLine(`Some fluff flies out of the ruptures. 1 damage!`);
+            target.health -= 1;
+            game.emitSignal({ type: "damageDealt", by: attacker, to: target });
+        }
+    }
+
+    player.addPattern({
+        intents: function() {
+            let intents = [];
+            for (let entity of game.entities.filter(e => e.health > 0)) {
+                intents.push({
+                    representation: [game.word("attack"), entity, game.word("with fists")],
+                    sequence: [createWaitAction(5),
+                        {
+                            func: "punch",
+                            args: [player.id, entity.id]
+                        },
+                        createWaitAction(2),
+                        {
+                            func: "punch",
+                            args: [player.id, entity.id]
+                        },
+                        createWaitAction(2),
+                        {
+                            func: "punch",
+                            args: [player.id, entity.id]
+                        },
+                        createWaitAction(2)
+                    ]
+                })
+            }
+            return intents;
+        }
+    })
+
+    game.actions.readyClaws = function(targetId) {
+        let target = game.getById(targetId);
+        if (target.health === 5)
+            newLine(`You let out a piercing shriek as you ready your razor-sharp, glassy claws!`);
+        else
+            newLine(`You ready your claws again!`);
+    }
+
+    game.actions.claw = function(attackerId, targetId) {
+        let attacker = game.getById(attackerId);
+        let target = game.getById(targetId);
+        newLine(`You tear out the ${target.baseName}'s insides for 2 damage!`);
+        target.health -= 2;
+        game.emitSignal({ type: "damageDealt", by: player, to: target, amount: 2 });
+    }
+
+
+    player.addPattern({
+        intents: function() {
+            let intents = [];
+            for (let target of game.entities.filter(e => e.health > 0)) {
+                intents.push({
+                    representation: [game.word("attack"), target, game.word("with claws")],
+                    sequence: [
+                        { func: "readyClaws", args: [target.id] },
+                        createWaitAction(10),
+                        { func: "claw", args: [player.id, target.id] },
+                    ]
+                })
+            }
+            return intents;
+        }
+    })
+}
+
+module.exports = { loadMod }
+},{"./timing":6,"./utils":7}],6:[function(require,module,exports){
 module.exports = {
     tps: 6,
-    mpt: 500
+    mpt: 50
 }
-},{}],8:[function(require,module,exports){
-function isParent(parentEntity, child) {
-    return child.parent === parentEntity.id;
-}
-
+},{}],7:[function(require,module,exports){
 function setParent(parentEntity, child) {
     if (parentEntity === undefined || parentEntity.id === undefined) throw "Undefined parent."
     child.parent = parentEntity.id;
@@ -1223,5 +1156,5 @@ function newLine(text) {
     display.scrollTop = display.scrollHeight;
 }
 
-module.exports = { isParent, setParent, unsetParent, newLine };
-},{}]},{},[6]);
+module.exports = { setParent, unsetParent, newLine };
+},{}]},{},[4]);

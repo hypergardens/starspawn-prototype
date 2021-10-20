@@ -1,4 +1,6 @@
 let timing = require("./timing");
+// let utils = require("./utils");
+// let newLine = utils.newLine;
 
 function createWait(ticks) {
     return {

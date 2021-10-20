@@ -1,9 +1,10 @@
 class Player {
     constructor(game) {
         this.baseName = "player";
-        this.PLAYER = true;
+        this.player = true;
         this.game = game;
         this.intent = null; // intent
+        this.sequence = [];
         this.picking = false;
         this.command = [];
         this.patterns = [];
@@ -107,20 +108,20 @@ class Player {
     setIntent() {
         // get valid intents
         let intents = this.getValidIntents();
-        // let intent = intents[0];
+        // from intents of command's length
         for (let intent of intents.filter(i => i.representation.length === this.command.length)) {
             console.log({ intent, command: this.command });
 
             let valid = true;
             for (let i = 0; i < intent.representation.length; i++) {
                 if (intent.representation[i] !== this.command[i]) {
-                    console.log("EXECUTION WONK, NOT ONE VALID ACTION");
+                    console.log("execution wonk, not one valid action");
                     valid = false;
                 }
             }
             if (valid) {
                 // set intent, not picking
-                this.intent = intent;
+                this.sequence = intent.sequence;
                 this.picking = false;
                 this.game.focus = null;
                 // clear command
@@ -148,7 +149,7 @@ class Player {
         // get the next words, and create an element for each on document
         let options = this.getNextWords();
 
-        let keys = "1234567890".split("");
+        let keys = "abcdefghijklmnopqrstuwxyz".split("");
 
         for (let i = 0; i < options.length; i++) {
             let optionText = options[i].baseName;

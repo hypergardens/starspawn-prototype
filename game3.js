@@ -11,9 +11,11 @@ game.player = player;
 let UI = require("./UI").UI
 let ui = new UI();
 
-let teaRoomMod = require("./TeaRoom");
-teaRoomMod.addPatterns(player, game);
+let teaRoomMod = require("./modTeaRoom");
+teaRoomMod.loadMod(player, game);
 
+// let debugMod = require("./modDebug");
+// debugMod.loadMod(player, game);
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////  Patterns   ////////////////////////////////////////////////
@@ -52,7 +54,7 @@ let table = { baseName: "table", surface: true }
 game.addEntity(table, area);
 game.addEntity({ baseName: "cup", fluidContainer: true, item: true }, table);
 game.addEntity({ baseName: "bowl", fluidContainer: true, item: true }, table);
-let note = { baseName: "super secret note", note: { content: `It reads: "The password is 6 1 5"` } };
+let note = { baseName: "super secret note", note: { content: `"The password is 6 1 5..."` } };
 game.addEntity(note, table);
 let stain = { baseName: "oily stain" };
 game.addEntity(stain, note);
@@ -68,7 +70,8 @@ game.addEntity({ baseName: `SECRETIVE teabag`, item: true, flammable: true, infu
 game.receivers.push({
     on_damageDealt: function(data) {
         newLine(`Damage dealt by ${data.by.baseName}`);
-        if (data.to.health <= 0) {
+        if (data.to.health <= 0 && !data.to.dead) {
+            data.to.dead = true;
             newLine(`You have defeated your first enemy, a vile ${data.to.baseName}. It drops a teabag!`);
             data.to.baseName = `dead ${data.to.baseName}`;
             data.health = undefined;
@@ -89,7 +92,7 @@ game.receivers.push({
                 for (let entityOnStove of game.entities.filter(e => (e.parent === stove.id))) {
                     // newLine(`The stove heats up the ${entityOnStove.baseName}`)
                     if (entityOnStove.fluidContainer) {
-                        for (let fluid of game.entities.filter(e => (e.fluid && utils.isParent(entityOnStove, e)))) {
+                        for (let fluid of game.entities.filter(e => (e.fluid && game.isParent(entityOnStove, e)))) {
                             // newLine(`The stove heats up the ${fluid.baseName} in the ${entityOnStove.baseName}`);
                             fluid.temperature += 1;
                             if (fluid.temperature == 23) {
@@ -98,8 +101,8 @@ game.receivers.push({
                         }
                     }
                     if (entityOnStove.flammable) {
-                        newLine(`The ${entityOnStove.baseName} burns up`)
-                        game.deleteById(entityOnStove.id);
+                        // newLine(`The ${entityOnStove.baseName} burns up`)
+                        // game.deleteById(entityOnStove.id);
                     }
                 }
             }
@@ -112,14 +115,14 @@ game.receivers.push({
         for (let fluidContainer of game.entities.filter(e => e.fluidContainer)) {
             for (let hotFluid of game.entities.filter(hotFluid => (
                     hotFluid.fluid &&
-                    utils.isParent(fluidContainer, hotFluid) &&
+                    game.isParent(fluidContainer, hotFluid) &&
                     hotFluid.temperature > 23))) {
                 let count = 0;
                 let prefix = "";
                 // if infusable in container and hot fluid
                 for (infusingTeabag of game.entities.filter(e => (
                         e.infusable &&
-                        utils.isParent(fluidContainer, e)))) {
+                        game.isParent(fluidContainer, e)))) {
                     count += 1;
                     prefix += `${infusingTeabag.flavour} `
                     game.emitSignal({ type: "teaMade" });
@@ -163,37 +166,10 @@ game.addEntity({
     time: -1
 })
 
-game.receivers.push({
-    on_tick: function(data) {
-        for (let timer of game.entities.filter(e => e.type === "timer")) {
-            timer.time += 1;
-            // newLine(`Time: ${timer.time}`);
-        }
-    }
-})
 
-game.receivers.push({
-    on_ping: function(data) {
-        game.enqueue({
-            effect: () => newLine("Pong!"),
-            signals: [{ type: "pong" }],
-            pause: 300,
-        })
-    }
-})
-
-game.receivers.push({
-    on_pong: function(data) {
-        game.enqueue({
-            effect: () => newLine("Peng!"),
-            signals: [{ type: "peng" }],
-            pause: 300,
-        })
-    }
-})
 
 // keyboard mode
-let keys = "1234567890".split("");
+let keys = "abcdefghijklmnopqrstuwxyz".split("");
 document.addEventListener('keypress', (event) => {
     var name = event.key;
     if (player.picking && keys.indexOf(name) !== -1) {
@@ -206,17 +182,12 @@ document.addEventListener('keypress', (event) => {
 player.updateCommandUI();
 game.updateEntityTreeUI();
 game.getIntents();
-// console.log({ "all intents": player.getAllIntents() });
+
+console.log({ "all intents": player.getAllIntents() });
 // for (let intent of player.getAllIntents()) {
-//     console.log(intent.representation.map(w => w.baseName))
+//     console.log({ intent })
 // }
-//^ document
+
 function debug(text) {
     document.getElementById("debug").innerText = text;
 }
-
-// setInterval(() => {
-//     debug(`int: ${game.intentsReady}  sig: ${game.signalsReady}`);
-// }, 50);
-
-//^ document

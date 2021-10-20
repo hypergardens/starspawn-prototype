@@ -1,0 +1,8 @@
+game.actions
+    wait
+    newLine(text)
+
+    createNewLineAction(text)
+    createWaitAction(ticks)
+
+fluidsIn(containerId)

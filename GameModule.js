@@ -14,6 +14,9 @@ class Game {
         this.time = 0;
         this.focus = null;
         this.player = null;
+
+        // overhaul
+        this.actions = {};
     }
 
     addEntity(entity, parentEntity = undefined) {
@@ -43,8 +46,16 @@ class Game {
         return depth;
     }
 
-    childrenOf(entity) {
-        let contents = this.entities.filter(e => utils.isParent(entity, e));
+    isParent(parentEntity, childEntity) {
+        return childEntity.parent === parentEntity.id;
+    }
+
+    getChildrenById(id) {
+        return this.getChildren(this.getById(id));
+    }
+
+    getChildren(entity) {
+        let contents = this.entities.filter(e => this.isParent(entity, e));
         // if (contents.length > 0) console.log(contents)
         // console.log("children of", entity.baseName, contents)
         // if (contents.length === 0) console.log({ entity, contents })
@@ -83,30 +94,32 @@ class Game {
         // get this tick's Actions {aedpcs} for every entity with intent (null or Intent)
         this.queue = [];
         this.intentsReady = true;
-        for (let entity of this.entities) {
-            // empty intent
-            if (entity.intent === null || (entity.intent && entity.intent.sequence.length === 0)) {
+        for (let entity of this.entities.filter(e => e.sequence)) {
+            let sequence = entity.sequence;
+            console.log({ sequence })
+                // empty intent
+            if (!sequence || (sequence && sequence.length === 0)) {
                 this.intentsReady = false;
                 // hang and reset for player input
-                if (entity.PLAYER) {
+                if (entity.player) {
                     if (!entity.picking) {
                         entity.picking = true;
                         entity.setOptionsUI();
                     }
                     setTimeout(() => {
-                        // let options = entity.getNextWords();
-                        // if (entity.command.length > 0) {
-                        //     entity.pickNextWord(Math.floor(Math.random() * (options.length - 1)));
-                        // } else {
-                        //     entity.pickNextWord(Math.floor(Math.random() * options.length));
-                        // }
+                        let options = entity.getNextWords();
+                        if (false) {
+                            if (entity.command.length > 0) {
+                                entity.pickNextWord(Math.floor(Math.random() * (options.length - 1)));
+                            } else {
+                                entity.pickNextWord(Math.floor(Math.random() * options.length));
+                            }
+                        }
                         this.getIntents();
-                    }, 100);
+                    }, 30);
                 }
-            } else if (entity.intent) {
+            } else if (sequence.length > 0) {
                 // extract actions and enqueue them
-                let sequence = entity.intent.sequence;
-                if (!sequence || sequence.length === 0) throw `no sequence of actions on entity with intent`;
                 let ticks = 0;
                 let i = 0;
 
@@ -179,20 +192,30 @@ class Game {
     }
 
     executeNext() {
+        // get next action to execute
         if (this.queue.length > 0) {
             let action = this.queue.shift();
             console.log("executing", action);
-            if (action.condition === undefined || action.condition() === true) {
-                if (action.effect) {
-                    action.effect();
-                }
-                if (action.pause) {
-                    setTimeout(() => { this.executeNext() }, action.pause);
+            if (action.func) {
+                if (this.actions[action.func]) {
+                    let func = this.actions[action.func];
+                    if (action.args) {
+                        func(...action.args);
+                    } else {
+                        func();
+                    }
                 } else {
-                    this.executeNext();
+                    throw (`Unknown action ${action.func}, args ${action.args}`);
                 }
             }
+            // execute the next instantly or with pause
+            if (action.pause) {
+                setTimeout(() => { this.executeNext() }, action.pause);
+            } else {
+                this.executeNext();
+            }
         } else {
+            // loop again
             this.time += 1;
             this.updateUI();
             this.getIntents();
@@ -230,8 +253,8 @@ class Game {
             // textNode.style.color = "lightgrey";
             textNode.innerText = `|${"----".repeat(game.getDepth(entity))}${entity.baseName} ${healthText}${focusedText}\n`;
             textNode.className = "treeObject";
-            if (game.childrenOf(entity).length > 0) {
-                for (let child of game.childrenOf(entity).filter(e => game.isAccessible(e))) {
+            if (game.getChildren(entity).length > 0) {
+                for (let child of game.getChildren(entity).filter(e => game.isAccessible(e))) {
                     textNode.appendChild(indentedSubtree(child, depth + 1));
                 }
             }
