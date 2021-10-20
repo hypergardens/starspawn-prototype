@@ -35,7 +35,7 @@ class Teapot {
 // game.addEntity({ baseName: "shrine", shrine: true })
 // game.addEntity({ baseName: "crystal", inv: false, weight: 1 })
 // game.addEntity({ baseName: "boulder", weight: 10 })
-let debug = true;
+let debug = false;
 if (!debug) {
 
     let area = { baseName: "tea room" };

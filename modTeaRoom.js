@@ -194,9 +194,11 @@ function loadMod(player, game) {
                     intents.push({
                         representation: [game.word("put"), infusable, game.word("in"), fluidContainer],
                         sequence: [{
-                            func: "linkParent",
-                            args: [fluidContainer.id, infusable.id, "in"]
-                        }]
+                                func: "linkParent",
+                                args: [fluidContainer.id, infusable.id, "in"]
+                            },
+                            createWaitAction(3)
+                        ]
                     });
                 }
             }
@@ -371,7 +373,7 @@ function loadMod(player, game) {
         let container = game.getById(containerId);
         for (let fluid of game.getChildren(container).filter(e => e.fluid)) {
             if (fluid.turboTea) {
-                newLine(`You feel like a 400 IQ, cupboard-opening, killing machine!`);
+                newLine(`You feel like a 400 IQ, cupboard-opening, killing machine! In fact, you feel so good you feel like giving Gardens some feedback on their game!`);
             } else if (fluid.tea) {
                 newLine(`It's not too bad. It's... fine.`)
             } else {
@@ -502,7 +504,7 @@ function loadMod(player, game) {
                             hotFluid.baseName = `TURBO TESTER TEA`;
                             if (!hotFluid.turboTea) {
                                 hotFluid.turboTea = true;
-                                newLine("TOTAL VICTORY ACHIEVED! Thanks for playing!");
+                                newLine("TOTAL VICTORY ACHIEVED! Enjoy your tea!");
                             }
                         }
                         // console.log("hotFluid", hotFluid);
