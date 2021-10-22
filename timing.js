@@ -1,4 +1,4 @@
 module.exports = {
     tps: 6,
-    mpt: 50
+    mpt: 5
 }

@@ -23,7 +23,9 @@ class Game {
     addEntity(entity, parentEntity = undefined) {
         this.entities.push(entity);
         entity.id = this.id++;
-        entity.parent = (parentEntity === undefined) ? undefined : parentEntity.id;
+        if (parentEntity !== undefined) {
+            this.setParent(parentEntity, entity)
+        }
     }
 
     getById(id) {
@@ -40,15 +42,44 @@ class Game {
     getDepth(entity) {
         if (entity.id === undefined) throw `no id for object ${entity}`;
         let depth = 0;
-        while (entity.parent !== undefined) {
-            entity = this.getById(entity.parent);
+        while (this.getParent(entity) !== undefined) {
+            entity = this.getParent(entity);
             depth += 1;
         }
         return depth;
     }
 
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    // PARENT
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+    setParent(parentEntity, child, rel = null) {
+        if (parentEntity === undefined || parentEntity.id === undefined || this.getById(parentEntity.id) === undefined) throw "Undefined parent."
+
+        child.parent = parentEntity.id;
+        if (rel) {
+            child.rel = rel;
+        }
+    }
+
+    setParentById(parentId, childId, rel = null) {
+        this.setParent(this.getById(parentId), this.getById(childId), rel);
+    }
+
+    unsetParent(child) {
+        child.parent = undefined;
+    }
+
     isParent(parentEntity, childEntity) {
-        return childEntity.parent === parentEntity.id;
+        return this.getParent(childEntity) === parentEntity;
+    }
+
+    getParent(entity) {
+        if (entity.parent) {
+            return this.getById(entity.parent);
+        } else {
+            return undefined;
+        }
     }
 
     getChildrenById(id) {
@@ -63,6 +94,8 @@ class Game {
         return contents;
     }
 
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
     deleteById(id) {
         // TODO? throw if not found
         this.entities = this.entities.filter(e => e.id !== id);
@@ -70,7 +103,7 @@ class Game {
 
     isAccessible(entity) {
         if (entity === undefined || entity.parent === undefined) return true;
-        let parent = this.getById(entity.parent);
+        let parent = this.getParent(entity);
         let accessible = !parent.closed && !parent.locked;
         return accessible && this.isAccessible(parent);
     }
@@ -109,7 +142,7 @@ class Game {
                     }
                     setTimeout(() => {
                         let options = entity.getNextWords();
-                        if (false) {
+                        if (true) {
                             if (entity.command.length > 0) {
                                 entity.pickNextWord(Math.floor(Math.random() * (options.length - 1)));
                             } else {
@@ -117,7 +150,7 @@ class Game {
                             }
                         }
                         this.getIntents();
-                    }, 30);
+                    }, 1);
                 }
             } else if (sequence.length > 0) {
                 // extract actions and enqueue them
@@ -586,11 +619,11 @@ if (!debug) {
     game.addEntity(table, area);
     game.addEntity({ baseName: "cup", fluidContainer: true, item: true }, table);
     game.addEntity({ baseName: "bowl", fluidContainer: true, item: true }, table);
-    let note = { baseName: "super secret note", note: { content: `"The password is 6 1 5..."` } };
+    let note = { baseName: "super secret note", note: { content: `"The password is 6..."` } };
     game.addEntity(note, table);
     let stain = { baseName: "oily stain" };
     game.addEntity(stain, note);
-    let chest = { baseName: "chest", closed: true, locked: true, lockedContainer: { password: `615` } };
+    let chest = { baseName: "chest", closed: true, locked: true, lockedContainer: { password: `6` } };
     game.addEntity(chest, table);
     let smallerChest = { baseName: "smaller chest", closed: true };
     game.addEntity(smallerChest, chest);
@@ -618,11 +651,11 @@ if (!debug) {
     game.addEntity(table, area);
     game.addEntity({ baseName: "cup", fluidContainer: true, item: true }, table);
     game.addEntity({ baseName: "bowl", fluidContainer: true, item: true }, table);
-    let note = { baseName: "super secret note", note: { content: `"The password is 6 1 5..."` } };
+    let note = { baseName: "super secret note", note: { content: `"The password is 6..."` } };
     game.addEntity(note, table);
     let stain = { baseName: "oily stain" };
     game.addEntity(stain, note);
-    let chest = { baseName: "chest", closed: true, locked: true, lockedContainer: { password: `615` } };
+    let chest = { baseName: "chest", closed: true, locked: true, lockedContainer: { password: `6` } };
     game.addEntity(chest, table);
     let smallerChest = { baseName: "smaller chest", closed: true };
     game.addEntity(smallerChest, chest);
@@ -718,7 +751,7 @@ function loadMod(player, game) {
         let fluid = { baseName: fluidSource.fluidSource, fluid: true, temperature: fluidSource.temperature }
         newLine(`You fill up the ${fluidContainer.baseName} from the ${fluidSource.baseName} with ${fluid.baseName}`)
         game.addEntity(fluid);
-        utils.setParent(fluidContainer, fluid);
+        game.setParent(fluidContainer, fluid);
     }
 
     function fluidsIn(fluidContainer) {
@@ -753,13 +786,13 @@ function loadMod(player, game) {
 
     game.actions.emptyContainer = function(containerId) {
         let container = game.getById(containerId);
-        let containerParent = game.getById(container.parent);
+        let containerParent = game.getParent(container);
         newLine(`You empty the ${container.baseName} on the ${containerParent.baseName}.`);
         for (let child of game.getChildrenById(containerId)) {
             if (child.fluid) {
                 game.deleteById(child.id)
             } else {
-                utils.setParent(containerParent, child)
+                game.setParent(containerParent, child)
             }
         }
     }
@@ -792,7 +825,7 @@ function loadMod(player, game) {
 
         for (let child of game.getChildren(source)) {
             newLine(`You pour the ${child.baseName} from the ${source.baseName} into the ${destination.baseName}.`);
-            utils.setParent(destination, child);
+            game.setParent(destination, child);
         }
     }
 
@@ -818,14 +851,7 @@ function loadMod(player, game) {
     });
 
 
-    game.actions.linkParent = function(parentId, childId, rel = null) {
-        let parent = game.getById(parentId);
-        let child = game.getById(childId);
-        utils.setParent(parent, child);
-        if (rel) {
-            child.rel = rel;
-        }
-    }
+    game.actions.setParentById = (parentId, childId, rel) => game.setParentById(parentId, childId, rel);
 
     player.addPattern({
         intents: function() {
@@ -835,7 +861,7 @@ function loadMod(player, game) {
                     intents.push({
                         representation: [game.word("put"), entity, game.word("on"), surface],
                         sequence: [createNewLineAction(`You put the ${entity.baseName} on the ${surface.baseName}`), {
-                            func: "linkParent",
+                            func: "setParentById",
                             args: [surface.id, entity.id, "on"]
                         }],
                     });
@@ -854,7 +880,7 @@ function loadMod(player, game) {
                     intents.push({
                         representation: [game.word("put"), infusable, game.word("in"), fluidContainer],
                         sequence: [{
-                                func: "linkParent",
+                                func: "setParentById",
                                 args: [fluidContainer.id, infusable.id, "in"]
                             },
                             createWaitAction(3)
@@ -925,18 +951,20 @@ function loadMod(player, game) {
             let intents = [];
             for (let chest of game.entities.filter(e => e.lockedContainer && e.locked && game.isAccessible(e))) {
                 for (let i0 = 0; i0 < 10; i0++) {
-                    for (let i1 = 0; i1 < 10; i1++) {
-                        for (let i2 = 0; i2 < 10; i2++) {
-                            // the sequence
-                            intents.push({
-                                representation: [game.word(`unlock`), chest, game.word(String(i0)), game.word(String(i1)), game.word(String(i2))],
-                                sequence: [{
-                                    func: "tryUnlock",
-                                    args: [chest.id, `${i0}${i1}${i2}`]
-                                }],
-                            })
-                        }
-                    }
+                    // for (let i1 = 0; i1 < 10; i1++) {
+                    // for (let i2 = 0; i2 < 10; i2++) {
+                    // the sequence
+                    intents.push({
+                        representation: [game.word(`unlock`), chest, game.word(String(i0))],
+                        // representation: [game.word(`unlock`), chest, game.word(String(i0)), game.word(String(i1)), game.word(String(i2))],
+                        sequence: [{
+                            func: "tryUnlock",
+                            args: [chest.id, `${i0}`]
+                                // args: [chest.id, `${i0}${i1}${i2}`]
+                        }],
+                    });
+                    // }
+                    // }
                 }
             }
             return intents;
@@ -1106,7 +1134,7 @@ function loadMod(player, game) {
                 newLine(`You have defeated your first enemy, a vile ${data.to.baseName}. It drops a teabag!`);
                 data.to.baseName = `dead ${data.to.baseName}`;
                 data.health = undefined;
-                game.addEntity({ baseName: `VICTORIOUS teabag`, item: true, flammable: true, infusable: true, flavour: "VICTORY" }, data.to.parent);
+                game.addEntity({ baseName: `VICTORIOUS teabag`, item: true, flammable: true, infusable: true, flavour: "VICTORY" }, game.getParent(data.to));
             }
         }
     })
@@ -1116,24 +1144,20 @@ function loadMod(player, game) {
             for (let stove of game.entities.filter(e => e.baseName === "stove")) {
                 if (stove.active) {
                     stove.ctr += 1;
-                    if (stove.ctr >= 10) {
+                    // put out a message regularly
+                    if (stove.ctr >= 20) {
                         stove.ctr = 0;
                         newLine("The stove's flame burns a warm orange.")
                     }
-                    for (let entityOnStove of game.entities.filter(e => (e.parent === stove.id))) {
-                        // newLine(`The stove heats up the ${entityOnStove.baseName}`)
-                        if (entityOnStove.fluidContainer) {
-                            for (let fluid of game.entities.filter(e => (e.fluid && game.isParent(entityOnStove, e)))) {
-                                // newLine(`The stove heats up the ${fluid.baseName} in the ${entityOnStove.baseName}`);
-                                fluid.temperature += 1;
-                                if (fluid.temperature == 23) {
-                                    newLine(`The ${entityOnStove.baseName} is filled with hot ${fluid.baseName}!`)
-                                }
+                    // heat up fluid inside containers on stove
+                    for (let containerOnStove of game.entities.filter(containerOnStove => containerOnStove.fluidContainer && game.isParent(stove, containerOnStove))) {
+                        // newLine(`The stove heats up the ${containerOnStove.baseName}`)
+                        for (let fluid of game.entities.filter(fluid => (fluid.fluid && game.isParent(containerOnStove, fluid)))) {
+                            // newLine(`The stove heats up the ${fluid.baseName} in the ${containerOnStove.baseName}`);
+                            fluid.temperature += 1;
+                            if (fluid.temperature == 23) {
+                                newLine(`The ${containerOnStove.baseName} is filled with hot ${fluid.baseName}!`)
                             }
-                        }
-                        if (entityOnStove.flammable) {
-                            // newLine(`The ${entityOnStove.baseName} burns up`)
-                            // game.deleteById(entityOnStove.id);
                         }
                     }
                 }
@@ -1207,18 +1231,9 @@ module.exports = { loadMod }
 },{"./timing":6,"./utils":7}],6:[function(require,module,exports){
 module.exports = {
     tps: 6,
-    mpt: 50
+    mpt: 5
 }
 },{}],7:[function(require,module,exports){
-function setParent(parentEntity, child) {
-    if (parentEntity === undefined || parentEntity.id === undefined) throw "Undefined parent."
-    child.parent = parentEntity.id;
-}
-
-function unsetParent(child) {
-    child.parent = undefined;
-}
-
 function newLine(text) {
     // var node = document.createElement("li"); // Create a <li> node
     // var textnode = document.createTextNode(text); // Create a text node
@@ -1228,5 +1243,5 @@ function newLine(text) {
     display.scrollTop = display.scrollHeight;
 }
 
-module.exports = { setParent, unsetParent, newLine };
+module.exports = { newLine };
 },{}]},{},[4]);

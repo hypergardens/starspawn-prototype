@@ -58,7 +58,7 @@ function loadMod(player, game) {
         let fluid = { baseName: fluidSource.fluidSource, fluid: true, temperature: fluidSource.temperature }
         newLine(`You fill up the ${fluidContainer.baseName} from the ${fluidSource.baseName} with ${fluid.baseName}`)
         game.addEntity(fluid);
-        utils.setParent(fluidContainer, fluid);
+        game.setParent(fluidContainer, fluid);
     }
 
     function fluidsIn(fluidContainer) {
@@ -93,13 +93,13 @@ function loadMod(player, game) {
 
     game.actions.emptyContainer = function(containerId) {
         let container = game.getById(containerId);
-        let containerParent = game.getById(container.parent);
+        let containerParent = game.getParent(container);
         newLine(`You empty the ${container.baseName} on the ${containerParent.baseName}.`);
         for (let child of game.getChildrenById(containerId)) {
             if (child.fluid) {
                 game.deleteById(child.id)
             } else {
-                utils.setParent(containerParent, child)
+                game.setParent(containerParent, child)
             }
         }
     }
@@ -132,7 +132,7 @@ function loadMod(player, game) {
 
         for (let child of game.getChildren(source)) {
             newLine(`You pour the ${child.baseName} from the ${source.baseName} into the ${destination.baseName}.`);
-            utils.setParent(destination, child);
+            game.setParent(destination, child);
         }
     }
 
@@ -158,14 +158,7 @@ function loadMod(player, game) {
     });
 
 
-    game.actions.linkParent = function(parentId, childId, rel = null) {
-        let parent = game.getById(parentId);
-        let child = game.getById(childId);
-        utils.setParent(parent, child);
-        if (rel) {
-            child.rel = rel;
-        }
-    }
+    game.actions.setParentById = (parentId, childId, rel) => game.setParentById(parentId, childId, rel);
 
     player.addPattern({
         intents: function() {
@@ -175,7 +168,7 @@ function loadMod(player, game) {
                     intents.push({
                         representation: [game.word("put"), entity, game.word("on"), surface],
                         sequence: [createNewLineAction(`You put the ${entity.baseName} on the ${surface.baseName}`), {
-                            func: "linkParent",
+                            func: "setParentById",
                             args: [surface.id, entity.id, "on"]
                         }],
                     });
@@ -194,7 +187,7 @@ function loadMod(player, game) {
                     intents.push({
                         representation: [game.word("put"), infusable, game.word("in"), fluidContainer],
                         sequence: [{
-                                func: "linkParent",
+                                func: "setParentById",
                                 args: [fluidContainer.id, infusable.id, "in"]
                             },
                             createWaitAction(3)
@@ -265,18 +258,20 @@ function loadMod(player, game) {
             let intents = [];
             for (let chest of game.entities.filter(e => e.lockedContainer && e.locked && game.isAccessible(e))) {
                 for (let i0 = 0; i0 < 10; i0++) {
-                    for (let i1 = 0; i1 < 10; i1++) {
-                        for (let i2 = 0; i2 < 10; i2++) {
-                            // the sequence
-                            intents.push({
-                                representation: [game.word(`unlock`), chest, game.word(String(i0)), game.word(String(i1)), game.word(String(i2))],
-                                sequence: [{
-                                    func: "tryUnlock",
-                                    args: [chest.id, `${i0}${i1}${i2}`]
-                                }],
-                            })
-                        }
-                    }
+                    // for (let i1 = 0; i1 < 10; i1++) {
+                    // for (let i2 = 0; i2 < 10; i2++) {
+                    // the sequence
+                    intents.push({
+                        representation: [game.word(`unlock`), chest, game.word(String(i0))],
+                        // representation: [game.word(`unlock`), chest, game.word(String(i0)), game.word(String(i1)), game.word(String(i2))],
+                        sequence: [{
+                            func: "tryUnlock",
+                            args: [chest.id, `${i0}`]
+                                // args: [chest.id, `${i0}${i1}${i2}`]
+                        }],
+                    });
+                    // }
+                    // }
                 }
             }
             return intents;
@@ -446,7 +441,7 @@ function loadMod(player, game) {
                 newLine(`You have defeated your first enemy, a vile ${data.to.baseName}. It drops a teabag!`);
                 data.to.baseName = `dead ${data.to.baseName}`;
                 data.health = undefined;
-                game.addEntity({ baseName: `VICTORIOUS teabag`, item: true, flammable: true, infusable: true, flavour: "VICTORY" }, data.to.parent);
+                game.addEntity({ baseName: `VICTORIOUS teabag`, item: true, flammable: true, infusable: true, flavour: "VICTORY" }, game.getParent(data.to));
             }
         }
     })
@@ -456,24 +451,20 @@ function loadMod(player, game) {
             for (let stove of game.entities.filter(e => e.baseName === "stove")) {
                 if (stove.active) {
                     stove.ctr += 1;
-                    if (stove.ctr >= 10) {
+                    // put out a message regularly
+                    if (stove.ctr >= 20) {
                         stove.ctr = 0;
                         newLine("The stove's flame burns a warm orange.")
                     }
-                    for (let entityOnStove of game.entities.filter(e => (e.parent === stove.id))) {
-                        // newLine(`The stove heats up the ${entityOnStove.baseName}`)
-                        if (entityOnStove.fluidContainer) {
-                            for (let fluid of game.entities.filter(e => (e.fluid && game.isParent(entityOnStove, e)))) {
-                                // newLine(`The stove heats up the ${fluid.baseName} in the ${entityOnStove.baseName}`);
-                                fluid.temperature += 1;
-                                if (fluid.temperature == 23) {
-                                    newLine(`The ${entityOnStove.baseName} is filled with hot ${fluid.baseName}!`)
-                                }
+                    // heat up fluid inside containers on stove
+                    for (let containerOnStove of game.entities.filter(containerOnStove => containerOnStove.fluidContainer && game.isParent(stove, containerOnStove))) {
+                        // newLine(`The stove heats up the ${containerOnStove.baseName}`)
+                        for (let fluid of game.entities.filter(fluid => (fluid.fluid && game.isParent(containerOnStove, fluid)))) {
+                            // newLine(`The stove heats up the ${fluid.baseName} in the ${containerOnStove.baseName}`);
+                            fluid.temperature += 1;
+                            if (fluid.temperature == 23) {
+                                newLine(`The ${containerOnStove.baseName} is filled with hot ${fluid.baseName}!`)
                             }
-                        }
-                        if (entityOnStove.flammable) {
-                            // newLine(`The ${entityOnStove.baseName} burns up`)
-                            // game.deleteById(entityOnStove.id);
                         }
                     }
                 }

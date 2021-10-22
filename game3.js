@@ -55,11 +55,11 @@ if (!debug) {
     game.addEntity(table, area);
     game.addEntity({ baseName: "cup", fluidContainer: true, item: true }, table);
     game.addEntity({ baseName: "bowl", fluidContainer: true, item: true }, table);
-    let note = { baseName: "super secret note", note: { content: `"The password is 6 1 5..."` } };
+    let note = { baseName: "super secret note", note: { content: `"The password is 6..."` } };
     game.addEntity(note, table);
     let stain = { baseName: "oily stain" };
     game.addEntity(stain, note);
-    let chest = { baseName: "chest", closed: true, locked: true, lockedContainer: { password: `615` } };
+    let chest = { baseName: "chest", closed: true, locked: true, lockedContainer: { password: `6` } };
     game.addEntity(chest, table);
     let smallerChest = { baseName: "smaller chest", closed: true };
     game.addEntity(smallerChest, chest);
@@ -87,11 +87,11 @@ if (!debug) {
     game.addEntity(table, area);
     game.addEntity({ baseName: "cup", fluidContainer: true, item: true }, table);
     game.addEntity({ baseName: "bowl", fluidContainer: true, item: true }, table);
-    let note = { baseName: "super secret note", note: { content: `"The password is 6 1 5..."` } };
+    let note = { baseName: "super secret note", note: { content: `"The password is 6..."` } };
     game.addEntity(note, table);
     let stain = { baseName: "oily stain" };
     game.addEntity(stain, note);
-    let chest = { baseName: "chest", closed: true, locked: true, lockedContainer: { password: `615` } };
+    let chest = { baseName: "chest", closed: true, locked: true, lockedContainer: { password: `6` } };
     game.addEntity(chest, table);
     let smallerChest = { baseName: "smaller chest", closed: true };
     game.addEntity(smallerChest, chest);

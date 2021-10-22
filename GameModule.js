@@ -22,7 +22,9 @@ class Game {
     addEntity(entity, parentEntity = undefined) {
         this.entities.push(entity);
         entity.id = this.id++;
-        entity.parent = (parentEntity === undefined) ? undefined : parentEntity.id;
+        if (parentEntity !== undefined) {
+            this.setParent(parentEntity, entity)
+        }
     }
 
     getById(id) {
@@ -39,15 +41,44 @@ class Game {
     getDepth(entity) {
         if (entity.id === undefined) throw `no id for object ${entity}`;
         let depth = 0;
-        while (entity.parent !== undefined) {
-            entity = this.getById(entity.parent);
+        while (this.getParent(entity) !== undefined) {
+            entity = this.getParent(entity);
             depth += 1;
         }
         return depth;
     }
 
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    // PARENT
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+    setParent(parentEntity, child, rel = null) {
+        if (parentEntity === undefined || parentEntity.id === undefined || this.getById(parentEntity.id) === undefined) throw "Undefined parent."
+
+        child.parent = parentEntity.id;
+        if (rel) {
+            child.rel = rel;
+        }
+    }
+
+    setParentById(parentId, childId, rel = null) {
+        this.setParent(this.getById(parentId), this.getById(childId), rel);
+    }
+
+    unsetParent(child) {
+        child.parent = undefined;
+    }
+
     isParent(parentEntity, childEntity) {
-        return childEntity.parent === parentEntity.id;
+        return this.getParent(childEntity) === parentEntity;
+    }
+
+    getParent(entity) {
+        if (entity.parent) {
+            return this.getById(entity.parent);
+        } else {
+            return undefined;
+        }
     }
 
     getChildrenById(id) {
@@ -62,6 +93,8 @@ class Game {
         return contents;
     }
 
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
     deleteById(id) {
         // TODO? throw if not found
         this.entities = this.entities.filter(e => e.id !== id);
@@ -69,7 +102,7 @@ class Game {
 
     isAccessible(entity) {
         if (entity === undefined || entity.parent === undefined) return true;
-        let parent = this.getById(entity.parent);
+        let parent = this.getParent(entity);
         let accessible = !parent.closed && !parent.locked;
         return accessible && this.isAccessible(parent);
     }
@@ -108,7 +141,7 @@ class Game {
                     }
                     setTimeout(() => {
                         let options = entity.getNextWords();
-                        if (false) {
+                        if (true) {
                             if (entity.command.length > 0) {
                                 entity.pickNextWord(Math.floor(Math.random() * (options.length - 1)));
                             } else {
@@ -116,7 +149,7 @@ class Game {
                             }
                         }
                         this.getIntents();
-                    }, 30);
+                    }, 1);
                 }
             } else if (sequence.length > 0) {
                 // extract actions and enqueue them
