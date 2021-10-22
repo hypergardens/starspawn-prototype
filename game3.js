@@ -107,6 +107,9 @@ if (!debug) {
 let keys = "abcdefghijklmnopqrstuwxyz".split("");
 document.addEventListener('keypress', (event) => {
     var name = event.key;
+    if (name === "`") {
+        game.playRandomly = !game.playRandomly;
+    }
     if (player.picking && keys.indexOf(name) !== -1) {
         // alert(`pressed ${keys.indexOf(name)} of ${keys}`)
         player.pickNextWord(keys.indexOf(name));

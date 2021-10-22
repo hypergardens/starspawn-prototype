@@ -14,7 +14,7 @@ class Game {
         this.time = 0;
         this.focus = null;
         this.player = null;
-
+        this.playRandomly = false;
         // overhaul
         this.actions = {};
     }
@@ -23,7 +23,7 @@ class Game {
         this.entities.push(entity);
         entity.id = this.id++;
         if (parentEntity !== undefined) {
-            this.setParent(parentEntity, entity)
+            this.setParent(parentEntity, entity);
         }
     }
 
@@ -51,34 +51,82 @@ class Game {
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     // PARENT
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-    setParent(parentEntity, child, rel = null) {
-        if (parentEntity === undefined || parentEntity.id === undefined || this.getById(parentEntity.id) === undefined) throw "Undefined parent."
-
-        child.parent = parentEntity.id;
-        if (rel) {
-            child.rel = rel;
+    addLink(fromEntity, toEntity, relation) {
+        // check no existing link
+        for (let link of this.entities.filter(l => l.link)) {
+            if (link.from === fromEntity.id && link.to === toEntity.id) throw `Existing link ${{link}}`;
         }
+        // create link
+        this.id += 1;
+        let link = {
+            link: relation,
+            from: fromEntity.id,
+            to: toEntity.id,
+            id: this.id,
+        }
+        this.addEntity(link);
+        return link;
     }
 
-    setParentById(parentId, childId, rel = null) {
-        this.setParent(this.getById(parentId), this.getById(childId), rel);
+    findLink(fromEntity, toEntity, relation) {
+        let found = undefined;
+        for (let link of this.entities.filter(l => l.link)) {
+            if (link.link === relation && link.from === fromEntity.id && link.to === toEntity.id) {
+                found = link;
+            }
+        }
+        return found;
     }
 
-    unsetParent(child) {
-        child.parent = undefined;
+    removeLink(fromEntity, toEntity, relation) {
+        let found = false;
+        for (let link of this.entities.filter(l => l.link)) {
+            if (link.link === relation && link.from === fromEntity.id && link.to === toEntity.id) {
+                found = true;
+                this.deleteById(link.id);
+            }
+        }
+        if (!found) throw `No link found ${{fromEntity, toEntity, relation}}`;
+    }
+
+    setParent(parentEntity, childEntity) {
+        if (parentEntity === undefined || parentEntity.id === undefined || this.getById(parentEntity.id) === undefined) throw "Undefined parent.";
+        this.unsetParent(childEntity);
+        this.addLink(parentEntity, childEntity, "parent");
+    }
+
+    setParentById(parentId, childId, relation = null) {
+        this.setParent(this.getById(parentId), this.getById(childId), relation);
+    }
+
+    unsetParent(childEntity) {
+        this.unlink(childEntity, "parent");
+    }
+
+    unlink(entity, relation = null) {
+        // delete links with given relation
+        for (let link of this.entities.filter(l => l.link)) {
+            if (link.to === entity.id) {
+                if (!relation || link.link === relation)
+                    this.deleteById(link.id);
+            }
+        }
     }
 
     isParent(parentEntity, childEntity) {
-        return this.getParent(childEntity) === parentEntity;
+        return this.findLink(parentEntity, childEntity, "parent");
     }
 
-    getParent(entity) {
-        if (entity.parent) {
-            return this.getById(entity.parent);
-        } else {
-            return undefined;
+    getParent(childEntity) {
+        let parent = undefined;
+        for (let link of this.entities.filter(l => l.link)) {
+            if (link.link === "parent" && link.to === childEntity.id) {
+                parent = this.getById(link.from);
+            }
+            // console.log(this.entities.filter(l => l.link));
         }
+        // console.log({ childEntity, parent });
+        return parent;
     }
 
     getChildrenById(id) {
@@ -87,9 +135,6 @@ class Game {
 
     getChildren(entity) {
         let contents = this.entities.filter(e => this.isParent(entity, e));
-        // if (contents.length > 0) console.log(contents)
-        // console.log("children of", entity.baseName, contents)
-        // if (contents.length === 0) console.log({ entity, contents })
         return contents;
     }
 
@@ -101,7 +146,7 @@ class Game {
     }
 
     isAccessible(entity) {
-        if (entity === undefined || entity.parent === undefined) return true;
+        if (entity === undefined || this.getParent(entity) === undefined) return true;
         let parent = this.getParent(entity);
         let accessible = !parent.closed && !parent.locked;
         return accessible && this.isAccessible(parent);
@@ -141,7 +186,7 @@ class Game {
                     }
                     setTimeout(() => {
                         let options = entity.getNextWords();
-                        if (true) {
+                        if (this.playRandomly) {
                             if (entity.command.length > 0) {
                                 entity.pickNextWord(Math.floor(Math.random() * (options.length - 1)));
                             } else {
