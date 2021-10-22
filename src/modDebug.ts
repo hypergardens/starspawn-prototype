@@ -3,18 +3,17 @@ import timing = require("./timing");
 
 let newLine = utils.newLine;
 function loadMod(player, game) {
-
     game.actions.newLine = utils.newLine;
 
-    game.actions.wait = function(ticks) {
+    game.actions.wait = function (ticks) {
         game.actions.newLine(`Still waiting... of ${ticks}`);
-    }
+    };
 
     function createNewLineAction(text) {
         return {
             func: "newLine",
-            args: [text]
-        }
+            args: [text],
+        };
     }
 
     function createWaitAction(ticks) {
@@ -23,7 +22,7 @@ function loadMod(player, game) {
             args: [ticks],
             duration: ticks,
             pause: timing.mpt / Math.pow(ticks, 1),
-        }
+        };
     }
 
     // wait various durations
@@ -36,28 +35,31 @@ function loadMod(player, game) {
                 { baseName: "6 ticks", dur: 6 },
                 // { baseName: "12 ticks", dur: 12 },
                 // { baseName: "60 ticks", dur: 60 },
-            ]
+            ];
             for (let duration of durations) {
                 let intent = {
-                    representation: [game.word("wait"), game.word(duration.baseName)],
+                    representation: [
+                        game.word("wait"),
+                        game.word(duration.baseName),
+                    ],
                     sequence: [
                         createNewLineAction(`You wait ${duration.dur} ticks.`),
-                        createWaitAction(duration.dur)
-                    ]
-                }
+                        createWaitAction(duration.dur),
+                    ],
+                };
                 intents.push(intent);
             }
             return intents;
-        }
+        },
     });
 
     // random clapping
     player.addPattern({
-        intents: function() {
+        intents: function () {
             let intents = [];
             // the effect function
             function effect() {
-                newLine("CLAP!")
+                newLine("CLAP!");
             }
             // the sequence
             intents.push({
@@ -73,10 +75,10 @@ function loadMod(player, game) {
                     createNewLineAction("CLAP!"),
                     createNewLineAction("CLAP!"),
                 ],
-            })
+            });
             return intents;
-        }
-    })
+        },
+    });
 
     function createPingAction() {
         return {
@@ -84,60 +86,69 @@ function loadMod(player, game) {
             args: ["ping"],
             pause: 100,
             signals: [{ type: "ping" }],
-            duration: 0
-        }
+            duration: 0,
+        };
     }
 
     // 3x ping, to be responded to with pong and peng
     player.addPattern({
-        intents: function() {
+        intents: function () {
             let intents = [];
             intents.push({
                 representation: [game.word("DEBUG"), game.word("3 x ping.")],
-                sequence: [createPingAction(), createPingAction(), createPingAction()],
-            })
+                sequence: [
+                    createPingAction(),
+                    createPingAction(),
+                    createPingAction(),
+                ],
+            });
             return intents;
-        }
-    })
+        },
+    });
 
     game.receivers.push({
-        on_ping: function(data) {
+        on_ping: function (data) {
             game.enqueue({
                 func: "newLine",
                 args: ["Pong!"],
                 signals: [{ type: "pong" }],
                 pause: 300,
-            })
-        }
-    })
+            });
+        },
+    });
 
     game.receivers.push({
-        on_pong: function(data) {
+        on_pong: function (data) {
             game.enqueue({
                 func: "newLine",
                 args: ["Peng!"],
                 signals: [{ type: "peng" }],
                 pause: 300,
-            })
-        }
-    })
+            });
+        },
+    });
 
     // plain longer action
     player.addPattern({
-        intents: function() {
+        intents: function () {
             let intents = [];
             // the sequence
             intents.push({
-                representation: [game.word("DEBUG"), game.word("POW"), game.word("POW"), game.word("POW")],
+                representation: [
+                    game.word("DEBUG"),
+                    game.word("POW"),
+                    game.word("POW"),
+                    game.word("POW"),
+                ],
                 sequence: [createNewLineAction("POW POW POW!")],
-            })
+            });
             return intents;
-        }
-    })
+        },
+    });
 
     // plain shorter action
     player.addPattern({
-        intents: function() {
+        intents: function () {
             let intents = [];
             // the sequence
             intents.push({
@@ -145,51 +156,51 @@ function loadMod(player, game) {
                 sequence: [createNewLineAction("POW!")],
             });
             return intents;
-        }
-    })
+        },
+    });
 
     // duration 2 action that releases pings
     player.addPattern({
-        intents: function() {
+        intents: function () {
             let intents = [];
             // the sequence
             intents.push({
                 representation: [game.word("DEBUG"), game.word("long-ping")],
-                sequence: [{
-                    func: "newLine",
-                    args: ["piiiiiiiiing!"],
-                    pause: 300,
-                    signals: [{ type: "ping" }],
-                    duration: 2,
-                }],
-            })
+                sequence: [
+                    {
+                        func: "newLine",
+                        args: ["piiiiiiiiing!"],
+                        pause: 300,
+                        signals: [{ type: "ping" }],
+                        duration: 2,
+                    },
+                ],
+            });
             return intents;
-        }
-    })
+        },
+    });
 
     // 3 ticks
     player.addPattern({
-        intents: function() {
+        intents: function () {
             let intents = [];
             // the sequence
             intents.push({
                 representation: [game.word("DEBUG"), game.word("wait 3 ticks")],
-                sequence: [
-                    createWaitAction(3),
-                ],
-            })
+                sequence: [createWaitAction(3)],
+            });
             return intents;
-        }
-    })
+        },
+    });
 
     // tick timers up
     game.receivers.push({
-        on_tick: function(data) {
-            for (let timer of game.entities.filter(e => e.type === "timer")) {
+        on_tick: function (data) {
+            for (let timer of game.entities.filter((e) => e.type === "timer")) {
                 timer.time += 1;
             }
-        }
-    })
+        },
+    });
 }
 
-module.exports = { loadMod }
+module.exports = { loadMod };

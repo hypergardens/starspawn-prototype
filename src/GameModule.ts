@@ -1,7 +1,7 @@
 // let utils = require("./utils")
 // let timing = require("./timing");
-import * as utils from "./utils"
-import * as timing from "./timing"
+import * as utils from "./utils";
+import * as timing from "./timing";
 export class Game {
     id: number;
     entities: any[];
@@ -66,8 +66,9 @@ export class Game {
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     addLink(fromEntity, toEntity, relation) {
         // check no existing link
-        for (let link of this.entities.filter(l => l.link)) {
-            if (link.from === fromEntity.id && link.to === toEntity.id) throw `Existing link ${{link}}`;
+        for (let link of this.entities.filter((l) => l.link)) {
+            if (link.from === fromEntity.id && link.to === toEntity.id)
+                throw `Existing link ${{ link }}`;
         }
         // create link
         this.id += 1;
@@ -76,15 +77,19 @@ export class Game {
             from: fromEntity.id,
             to: toEntity.id,
             id: this.id,
-        }
+        };
         this.addEntity(link);
         return link;
     }
 
     findLink(fromEntity, toEntity, relation) {
         let found = undefined;
-        for (let link of this.entities.filter(l => l.link)) {
-            if (link.link === relation && link.from === fromEntity.id && link.to === toEntity.id) {
+        for (let link of this.entities.filter((l) => l.link)) {
+            if (
+                link.link === relation &&
+                link.from === fromEntity.id &&
+                link.to === toEntity.id
+            ) {
                 found = link;
             }
         }
@@ -93,17 +98,26 @@ export class Game {
 
     removeLink(fromEntity, toEntity, relation) {
         let found = false;
-        for (let link of this.entities.filter(l => l.link)) {
-            if (link.link === relation && link.from === fromEntity.id && link.to === toEntity.id) {
+        for (let link of this.entities.filter((l) => l.link)) {
+            if (
+                link.link === relation &&
+                link.from === fromEntity.id &&
+                link.to === toEntity.id
+            ) {
                 found = true;
                 this.deleteById(link.id);
             }
         }
-        if (!found) throw `No link found ${{fromEntity, toEntity, relation}}`;
+        if (!found) throw `No link found ${{ fromEntity, toEntity, relation }}`;
     }
 
     setParent(parentEntity, childEntity) {
-        if (parentEntity === undefined || parentEntity.id === undefined || this.getById(parentEntity.id) === undefined) throw "Undefined parent.";
+        if (
+            parentEntity === undefined ||
+            parentEntity.id === undefined ||
+            this.getById(parentEntity.id) === undefined
+        )
+            throw "Undefined parent.";
         this.unsetParent(childEntity);
         this.addLink(parentEntity, childEntity, "parent");
     }
@@ -118,7 +132,7 @@ export class Game {
 
     unlink(entity, relation = null) {
         // delete links with given relation
-        for (let link of this.entities.filter(l => l.link)) {
+        for (let link of this.entities.filter((l) => l.link)) {
             if (link.to === entity.id) {
                 if (!relation || link.link === relation)
                     this.deleteById(link.id);
@@ -132,7 +146,7 @@ export class Game {
 
     getParent(childEntity) {
         let parent = undefined;
-        for (let link of this.entities.filter(l => l.link)) {
+        for (let link of this.entities.filter((l) => l.link)) {
             if (link.link === "parent" && link.to === childEntity.id) {
                 parent = this.getById(link.from);
             }
@@ -147,7 +161,7 @@ export class Game {
     }
 
     getChildren(entity) {
-        let contents = this.entities.filter(e => this.isParent(entity, e));
+        let contents = this.entities.filter((e) => this.isParent(entity, e));
         return contents;
     }
 
@@ -155,11 +169,12 @@ export class Game {
 
     deleteById(id) {
         // TODO? throw if not found
-        this.entities = this.entities.filter(e => e.id !== id);
+        this.entities = this.entities.filter((e) => e.id !== id);
     }
 
     isAccessible(entity) {
-        if (entity === undefined || this.getParent(entity) === undefined) return true;
+        if (entity === undefined || this.getParent(entity) === undefined)
+            return true;
         let parent = this.getParent(entity);
         let accessible = !parent.closed && !parent.locked;
         return accessible && this.isAccessible(parent);
@@ -167,7 +182,7 @@ export class Game {
 
     enqueue(action, i = -1) {
         if (i === -1) {
-            this.queue.push(action)
+            this.queue.push(action);
         } else {
             this.queue.splice(i, 0, action);
         }
@@ -185,7 +200,7 @@ export class Game {
         // get this tick's Actions {aedpcs} for every entity with intent (null or Intent)
         this.queue = [];
         this.intentsReady = true;
-        for (let entity of this.entities.filter(e => e.sequence)) {
+        for (let entity of this.entities.filter((e) => e.sequence)) {
             let sequence = entity.sequence;
             // console.log({ sequence })
             // empty intent
@@ -201,9 +216,15 @@ export class Game {
                         let options = entity.getNextWords();
                         if (this.playRandomly) {
                             if (entity.command.length > 0) {
-                                entity.pickNextWord(Math.floor(Math.random() * (options.length - 1)));
+                                entity.pickNextWord(
+                                    Math.floor(
+                                        Math.random() * (options.length - 1)
+                                    )
+                                );
                             } else {
-                                entity.pickNextWord(Math.floor(Math.random() * options.length));
+                                entity.pickNextWord(
+                                    Math.floor(Math.random() * options.length)
+                                );
                             }
                         }
                         this.getIntents();
@@ -255,10 +276,12 @@ export class Game {
         while (!this.signalsReady) {
             this.signalsReady = true;
             // for every unpropagated action with signals, propagate and clear signals
-            for (let action of this.queue.filter(a => !a.propagated && a.signals && a.signals.length > 0)) {
+            for (let action of this.queue.filter(
+                (a) => !a.propagated && a.signals && a.signals.length > 0
+            )) {
                 for (let signal of action.signals) {
                     // new signal to propagate
-                    this.signalsReady = false
+                    this.signalsReady = false;
                     let type = signal.type;
                     // send to every receiver
                     for (let receiver of this.receivers) {
@@ -272,7 +295,7 @@ export class Game {
             }
         }
         // reset propagation for actions with duration
-        for (let action of this.queue.filter(a => a.propagated === true)) {
+        for (let action of this.queue.filter((a) => a.propagated === true)) {
             action.propagated = false;
         }
 
@@ -292,12 +315,14 @@ export class Game {
                         func();
                     }
                 } else {
-                    throw (`Unknown action ${action.func}, args ${action.args}`);
+                    throw `Unknown action ${action.func}, args ${action.args}`;
                 }
             }
             // execute the next instantly or with pause
             if (action.pause) {
-                setTimeout(() => { this.executeNext() }, action.pause);
+                setTimeout(() => {
+                    this.executeNext();
+                }, action.pause);
             } else {
                 this.executeNext();
             }
@@ -324,31 +349,36 @@ export class Game {
 
     updateEntityTreeUI() {
         let ticks = this.time % timing.tps;
-        let hours = Math.floor(this.time / timing.tps / 3600)
-        let minutes = Math.floor(this.time / timing.tps / 60)
-        let seconds = Math.floor(this.time / timing.tps)
+        let hours = Math.floor(this.time / timing.tps / 3600);
+        let minutes = Math.floor(this.time / timing.tps / 60);
+        let seconds = Math.floor(this.time / timing.tps);
         let game = this;
         let treeNode = document.getElementById("entityTree");
         treeNode.innerHTML = `Time: ${hours}:${minutes}:${seconds}:${ticks}\n\n</br>`;
 
         function indentedSubtree(entity, depth = 0) {
             if (!entity.baseName || entity.invisible) return null;
-            let healthText = (entity.health > 0 ? `[${"#".repeat(entity.health)}]` : "")
+            let healthText =
+                entity.health > 0 ? `[${"#".repeat(entity.health)}]` : "";
 
-            let focusedText = (game.focus === entity.id) ? "(focused)" : "";
+            let focusedText = game.focus === entity.id ? "(focused)" : "";
             let textNode = document.createElement("a");
             // textNode.style.color = "lightgrey";
-            textNode.innerText = `|${"----".repeat(game.getDepth(entity))}${entity.baseName} ${healthText}${focusedText}\n`;
+            textNode.innerText = `|${"----".repeat(game.getDepth(entity))}${
+                entity.baseName
+            } ${healthText}${focusedText}\n`;
             textNode.className = "treeObject";
             if (game.getChildren(entity).length > 0) {
-                for (let child of game.getChildren(entity).filter(e => game.isAccessible(e))) {
+                for (let child of game
+                    .getChildren(entity)
+                    .filter((e) => game.isAccessible(e))) {
                     textNode.appendChild(indentedSubtree(child, depth + 1));
                 }
             }
 
             // on click, focus action
-            textNode.addEventListener("click", function(e) {
-                e = <MouseEvent> window.event || e;
+            textNode.addEventListener("click", function (e) {
+                e = <MouseEvent>window.event || e;
                 if (this === e.target) {
                     game.focus = entity.id;
                     game.player.command = [];
@@ -360,7 +390,9 @@ export class Game {
             return textNode;
         }
 
-        for (let entity of this.entities.filter(e => this.getDepth(e) === 0)) {
+        for (let entity of this.entities.filter(
+            (e) => this.getDepth(e) === 0
+        )) {
             let subtree = indentedSubtree(entity, 0);
             if (subtree) {
                 treeNode.appendChild(subtree);
@@ -369,7 +401,7 @@ export class Game {
     }
 
     updateClockUI() {
-        let clock = <HTMLCanvasElement> document.getElementById("clock");
+        let clock = <HTMLCanvasElement>document.getElementById("clock");
         let ctx = clock.getContext("2d");
         let width = clock.clientWidth;
         let height = clock.clientHeight;
@@ -385,8 +417,8 @@ export class Game {
         for (let i = 0; i < 12; i++) {
             ctx.moveTo(20, 0);
             ctx.lineTo(25, 0);
-            ctx.rotate(2 * Math.PI / 12);
-        };
+            ctx.rotate((2 * Math.PI) / 12);
+        }
         ctx.stroke();
         ctx.restore();
 
@@ -395,7 +427,7 @@ export class Game {
         ctx.translate(width / 2, height / 2);
         ctx.beginPath();
         ctx.rotate(-Math.PI / 2);
-        ctx.rotate(2 * Math.PI * (this.time) / timing.tps);
+        ctx.rotate((2 * Math.PI * this.time) / timing.tps);
         ctx.arc(10, 0, 2, 0, 2 * Math.PI);
         ctx.stroke();
         ctx.restore();
@@ -407,7 +439,7 @@ export class Game {
         ctx.translate(width / 2, height / 2);
         ctx.beginPath();
         ctx.rotate(-Math.PI / 2);
-        ctx.rotate(2 * Math.PI * this.time / timing.tps / 60);
+        ctx.rotate((2 * Math.PI * this.time) / timing.tps / 60);
         ctx.moveTo(10, 0);
         ctx.lineTo(25, 0);
         ctx.stroke();

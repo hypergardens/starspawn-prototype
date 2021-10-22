@@ -1,4 +1,4 @@
-class Player {
+export class Player {
     baseName: string;
     player: boolean;
     game: any;
@@ -19,13 +19,12 @@ class Player {
         this.patterns = [];
     }
 
-
     addPattern(pattern) {
         this.patterns.push(pattern);
     }
 
     getAllIntents() {
-        let intents = []
+        let intents = [];
         for (let pattern of this.patterns) {
             for (let intent of pattern.intents()) {
                 intents.push(intent);
@@ -61,8 +60,6 @@ class Player {
         return validIntents;
     }
 
-
-
     //^ getValidIntents(), command
     // get options for next word to pick
     getNextWords() {
@@ -73,7 +70,7 @@ class Player {
         for (let intent of validIntents) {
             // if the intent is the same length as the command, it can be confirmed
             if (intent.representation.length == this.command.length) {
-                options.push({ baseName: "> confirm <", type: "confirm" })
+                options.push({ baseName: "> confirm <", type: "confirm" });
             } else {
                 let newOption = intent.representation[this.command.length];
                 let duplicateThing = false;
@@ -90,11 +87,10 @@ class Player {
             }
         }
         if (this.command.length > 0) {
-            options.push({ baseName: "> cancel <", type: "cancel" })
+            options.push({ baseName: "> cancel <", type: "cancel" });
         }
         return options;
     }
-
 
     //^ updateCommandUI()
     pickNextWord(optionI) {
@@ -111,14 +107,15 @@ class Player {
         this.updateCommandUI();
     }
 
-
     // getValidIntents(), clearCommand()
     // set intent and clear the command
     setIntent() {
         // get valid intents
         let intents = this.getValidIntents();
         // from intents of command's length
-        for (let intent of intents.filter(i => i.representation.length === this.command.length)) {
+        for (let intent of intents.filter(
+            (i) => i.representation.length === this.command.length
+        )) {
             console.log({ intent, command: this.command });
 
             let valid = true;
@@ -139,20 +136,19 @@ class Player {
                 return;
             }
         }
-
     }
 
     updateCommandUI() {
-        document.getElementById("command").innerHTML = ">" + this.command.map(e => e.baseName).join(" ");
+        document.getElementById("command").innerHTML =
+            ">" + this.command.map((e) => e.baseName).join(" ");
     }
 
-
     clearOptionsUI() {
-        document.getElementById('options').innerHTML = "";
+        document.getElementById("options").innerHTML = "";
     }
 
     setOptionsUI() {
-        document.getElementById('options').innerHTML = "";
+        document.getElementById("options").innerHTML = "";
         if (!this.picking) return;
 
         // get the next words, and create an element for each on document
@@ -174,7 +170,7 @@ class Player {
             optionNode.innerText = optionText;
 
             shortcutNode.appendChild(optionNode);
-            document.getElementById('options').appendChild(shortcutNode);
+            document.getElementById("options").appendChild(shortcutNode);
             // when the span is clicked, handle using that optionText
             // REFACTOR: bad
 
@@ -191,11 +187,5 @@ class Player {
                 shortcutNode.className = "choice";
             }
         }
-
     }
 }
-
-
-
-
-module.exports = { Player }
