@@ -28,7 +28,6 @@ export class Game {
         this.focus = null;
         this.player = null;
         this.playRandomly = false;
-        // overhaul
         this.actions = {};
     }
 
