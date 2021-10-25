@@ -1,22 +1,24 @@
 export class Player {
     baseName: string;
     player: boolean;
-    game: any;
     intent: any;
     sequence: any[];
     picking: boolean;
     command: any[];
     patterns: any[];
+    focus: number;
+    id: number;
 
-    constructor(game) {
+    constructor() {
         this.baseName = "player";
         this.player = true;
-        this.game = game;
         this.intent = null; // intent
         this.sequence = [];
         this.picking = false;
         this.command = [];
         this.patterns = [];
+        this.focus = null;
+        this.id = -1;
     }
 
     addPattern(pattern) {
@@ -47,9 +49,9 @@ export class Player {
             }
 
             // check intent for focus validity, if any focus
-            let focusValid = this.game.focus ? false : true;
+            let focusValid = this.focus ? false : true;
             for (let entity of intent.representation) {
-                if (entity.id === this.game.focus) {
+                if (entity.id === this.focus) {
                     focusValid = true;
                 }
             }
@@ -99,7 +101,7 @@ export class Player {
             this.setIntent();
         } else if (options[optionI].type === "cancel") {
             this.command = [];
-            this.game.focus = null;
+            this.focus = null;
         } else {
             this.command.push(options[optionI]);
         }
@@ -129,7 +131,7 @@ export class Player {
                 // set intent, not picking
                 this.sequence = intent.sequence;
                 this.picking = false;
-                this.game.focus = null;
+                this.focus = null;
                 // clear command
                 this.command = [];
                 this.updateCommandUI();

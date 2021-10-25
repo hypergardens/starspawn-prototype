@@ -1,22 +1,23 @@
 import * as utils from "./utils";
 import * as timing from "./timing";
+import * as GameModule from "./GameModule";
 
 let newLine = utils.newLine;
-function loadMod(player, game) {
+function loadMod(player, game: GameModule.Game) {
     game.actions.newLine = utils.newLine;
 
-    game.actions.wait = function (ticks) {
-        // game.actions.newLine(`Still waiting... of ${ticks}`);
+    game.actions.wait = function (ticks: number = 0) {
+        game.actions.newLine(`Still waiting... of ${ticks}`);
     };
 
-    function createNewLineAction(text) {
+    function createNewLineAction(text: string) {
         return {
             func: "newLine",
             args: [text],
         };
     }
 
-    function createWaitAction(ticks) {
+    function createWaitAction(ticks: number) {
         return {
             func: "wait",
             args: [ticks],
@@ -56,11 +57,12 @@ function loadMod(player, game) {
     game.actions.fillFrom = function (fluidSourceId, fluidContainerId) {
         let fluidSource = game.getById(fluidSourceId);
         let fluidContainer = game.getById(fluidContainerId);
-        let fluid = {
-            baseName: fluidSource.fluidSource,
-            fluid: true,
-            temperature: fluidSource.temperature,
-        };
+        let fluid = game.buildObject(
+            {
+                baseName: fluidSource.fluidSource,
+            },
+            [["comp", { fluid: "water" }]]
+        );
         newLine(
             `You fill up the ${fluidContainer.baseName} from the ${fluidSource.baseName} with ${fluid.baseName}`
         );

@@ -5,7 +5,7 @@ import * as timing from "./timing";
 export class Game {
     id: number;
     entities: any[];
-    words: {};
+    words: any;
     intentsReady: boolean;
     signalsReady: boolean;
     queue: any[];
@@ -14,7 +14,7 @@ export class Game {
     focus: any;
     player: any;
     playRandomly: boolean;
-    actions: {};
+    actions: any;
 
     constructor() {
         this.id = 0;
@@ -25,21 +25,21 @@ export class Game {
         this.queue = []; // [Action*]
         this.receivers = []; // {on_signalType:func()}
         this.time = 0;
-        this.focus = null;
         this.player = null;
         this.playRandomly = false;
         this.actions = {};
     }
 
-    addEntity(entity, parentEntity = undefined) {
+    addEntity(entity: any, parentEntity = undefined): number {
         this.entities.push(entity);
         entity.id = this.id++;
         if (parentEntity !== undefined) {
             this.setParent(parentEntity, entity);
         }
+        return entity.id;
     }
 
-    getById(id) {
+    getById(id: number) {
         let found = undefined;
         for (let i = 0; i < this.entities.length; i++) {
             if (this.entities[i].id === id) {
@@ -50,7 +50,7 @@ export class Game {
         return found;
     }
 
-    getDepth(entity) {
+    getDepth(entity: { id: any }) {
         if (entity.id === undefined) throw `no id for object ${entity}`;
         let depth = 0;
         while (this.getParent(entity) !== undefined) {
@@ -63,19 +63,33 @@ export class Game {
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     // PARENT
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    addLink(fromEntity, toEntity, relation) {
+
+    buildObject(entity, relations: [string, any][] = []) {
+        this.addEntity(entity);
+        for (let relation of relations) {
+            let relationType = relation[0];
+            let child = relation[1];
+            this.addEntity(child);
+            this.addLink(entity, child, relationType);
+        }
+        return entity;
+    }
+
+    addLink(fromEntity: { id: any }, toEntity: { id: any }, relation: string) {
         // check no existing link
         for (let link of this.entities.filter((l) => l.link)) {
-            if (link.from === fromEntity.id && link.to === toEntity.id)
-                throw `Existing link ${{ link }}`;
+            if (
+                link.from === fromEntity.id &&
+                link.to === toEntity.id &&
+                link.link === relation
+            )
+                throw `Existing link ${link.from} ${link.to} ${relation}`;
         }
         // create link
-        this.id += 1;
         let link = {
             link: relation,
             from: fromEntity.id,
             to: toEntity.id,
-            id: this.id,
         };
         this.addEntity(link);
         return link;
@@ -149,13 +163,24 @@ export class Game {
             if (link.link === "parent" && link.to === childEntity.id) {
                 parent = this.getById(link.from);
             }
-            // console.log(this.entities.filter(l => l.link));
         }
-        // console.log({ childEntity, parent });
         return parent;
     }
 
-    getChildrenById(id) {
+    getComponents(entity: { id: any }, tag: string = null): any[] {
+        let components = [];
+        for (let link of this.entities.filter(
+            (l) => l.link && l.link === "comp" && l.from === entity.id
+        )) {
+            let component = this.getById(link.to);
+            if (tag === null || component[tag] !== undefined) {
+                components.push(component);
+            }
+        }
+        return components.length === 0 ? null : components;
+    }
+
+    getChildrenById(id: number) {
         return this.getChildren(this.getById(id));
     }
 
@@ -360,7 +385,8 @@ export class Game {
             let healthText =
                 entity.health > 0 ? `[${"#".repeat(entity.health)}]` : "";
 
-            let focusedText = game.focus === entity.id ? "(focused)" : "";
+            let focusedText =
+                game.player.focus === entity.id ? "(focused)" : "";
             let textNode = document.createElement("a");
             // textNode.style.color = "lightgrey";
             textNode.innerText = `|${"----".repeat(game.getDepth(entity))}${
@@ -379,7 +405,7 @@ export class Game {
             textNode.addEventListener("click", function (e) {
                 e = <MouseEvent>window.event || e;
                 if (this === e.target) {
-                    game.focus = entity.id;
+                    game.player.focus = entity.id;
                     game.player.command = [];
                     game.player.setOptionsUI();
                 }
@@ -445,3 +471,16 @@ export class Game {
         ctx.restore();
     }
 }
+
+// let g = new Game();
+
+// let teapot = g.buildObject(
+//     {
+//         teapot: true,
+//     },
+//     [
+//         ["is", { fluidContainer: true }],
+//         ["has", { spout: true }],
+//     ]
+// );
+// console.log(g.entities);
