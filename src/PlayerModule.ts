@@ -163,12 +163,12 @@ export class Player {
 
             // create a span with the optionText baseName
             var shortcutNode = document.createElement("a");
-            shortcutNode.style.color = "lightgrey";
+            // shortcutNode.style.color = "lightgrey";
             shortcutNode.innerText = `${keys[i]}) `;
 
             // keyboard shortcutNode
             var optionNode = document.createElement("a");
-            optionNode.style.color = "white";
+            // optionNode.style.color = "white";
             optionNode.innerText = optionText;
 
             shortcutNode.appendChild(optionNode);

@@ -9,6 +9,22 @@
     /* outline: solid red; */
 }
 
+:root {
+    --greengray: #3A443B;
+    --offwhite: #EEF0EB;
+    --offblack: #111317;
+}
+
+body {
+    background-color: var(--offblack);
+}
+
+#display {
+    color: var(--offwhite);
+    overflow: scroll;
+    height: 350px;
+}
+
 #mainArea {
     /* width: 1200px; */
     margin: auto;
@@ -27,14 +43,20 @@
     vertical-align: top;
 }
 
+#command {
+    background-color: var(--greengray);
+    color: var(--offwhite);
+    font-size: x-large;
+}
+
 .treeObject {
-    color: white;
-    background-color: darkslategray;
+    color: var(--offwhite);
+    background-color: var(--offblack);
 }
 
 .treeObject:hover {
-    color: darkslategray;
-    background-color: white;
+    color: var(--offblack);
+    background-color: var(--offwhite);
     cursor: pointer;
 }
 
@@ -49,11 +71,13 @@
     border-style: solid;
     border-radius: 3px;
     cursor: pointer;
-    background-color: darkslategray;
+    color: var(--offwhite);
+    background-color: var(--greengray);
 }
 
 .choice:hover {
-    background-color: dodgerblue;
+    background-color: var(--offwhite);
+    color: var(--offblack);
 }
 
 .confirm {
@@ -67,6 +91,7 @@
     border-style: solid;
     border-radius: 3px;
     cursor: pointer;
+    color: var(--offwhite);
     background-color: rgb(33, 107, 23);
 }
 
@@ -85,6 +110,7 @@
     border-style: solid;
     border-radius: 3px;
     cursor: pointer;
+    color: var(--offwhite);
     background-color: rgb(85, 37, 23);
 }
 

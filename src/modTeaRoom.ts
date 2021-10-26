@@ -57,12 +57,9 @@ function loadMod(player, game: GameModule.Game) {
     game.actions.fillFrom = function (fluidSourceId, fluidContainerId) {
         let fluidSource = game.getById(fluidSourceId);
         let fluidContainer = game.getById(fluidContainerId);
-        let fluid = game.buildObject(
-            {
-                baseName: fluidSource.fluidSource,
-            },
-            [["comp", { fluid: "water" }]]
-        );
+        let fluid = game.buildObject({
+            baseName: fluidSource.fluidSource,
+        });
         newLine(
             `You fill up the ${fluidContainer.baseName} from the ${fluidSource.baseName} with ${fluid.baseName}`
         );

@@ -163,7 +163,7 @@ var Game = /** @class */ (function () {
                 components.push(component);
             }
         }
-        return components;
+        return components.length === 0 ? null : components;
     };
     Game.prototype.getChildrenById = function (id) {
         return this.getChildren(this.getById(id));
@@ -617,11 +617,11 @@ var Player = /** @class */ (function () {
             var optionText = options[i].baseName;
             // create a span with the optionText baseName
             shortcutNode = document.createElement("a");
-            shortcutNode.style.color = "lightgrey";
+            // shortcutNode.style.color = "lightgrey";
             shortcutNode.innerText = keys[i] + ") ";
             // keyboard shortcutNode
             optionNode = document.createElement("a");
-            optionNode.style.color = "white";
+            // optionNode.style.color = "white";
             optionNode.innerText = optionText;
             shortcutNode.appendChild(optionNode);
             document.getElementById("options").appendChild(shortcutNode);
