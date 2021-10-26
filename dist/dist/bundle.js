@@ -28,11 +28,12 @@ var Game = /** @class */ (function () {
     Game.prototype.addEntity = function (entity, parentEntity) {
         if (parentEntity === void 0) { parentEntity = undefined; }
         this.entities.push(entity);
-        entity.id = this.id++;
+        entity.id = this.id;
+        this.id += 1;
         if (parentEntity !== undefined) {
             this.setParent(parentEntity, entity);
         }
-        return entity.id;
+        return entity;
     };
     Game.prototype.getById = function (id) {
         var found = undefined;
@@ -46,8 +47,6 @@ var Game = /** @class */ (function () {
         return found;
     };
     Game.prototype.getDepth = function (entity) {
-        if (entity.id === undefined)
-            throw "no id for object " + entity;
         var depth = 0;
         while (this.getParent(entity) !== undefined) {
             entity = this.getParent(entity);
@@ -58,120 +57,39 @@ var Game = /** @class */ (function () {
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     // PARENT
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    Game.prototype.buildObject = function (entity, relations) {
-        if (relations === void 0) { relations = []; }
-        this.addEntity(entity);
-        for (var _i = 0, relations_1 = relations; _i < relations_1.length; _i++) {
-            var relation = relations_1[_i];
-            var relationType = relation[0];
-            var child = relation[1];
-            this.addEntity(child);
-            this.addLink(entity, child, relationType);
-        }
-        return entity;
-    };
-    Game.prototype.addLink = function (fromEntity, toEntity, relation) {
-        // check no existing link
-        for (var _i = 0, _a = this.entities.filter(function (l) { return l.link; }); _i < _a.length; _i++) {
-            var link_1 = _a[_i];
-            if (link_1.from === fromEntity.id &&
-                link_1.to === toEntity.id &&
-                link_1.link === relation)
-                throw "Existing link " + link_1.from + " " + link_1.to + " " + relation;
-        }
-        // create link
-        var link = {
-            link: relation,
-            from: fromEntity.id,
-            to: toEntity.id,
-        };
-        this.addEntity(link);
-        return link;
-    };
-    Game.prototype.findLink = function (fromEntity, toEntity, relation) {
-        var found = undefined;
-        for (var _i = 0, _a = this.entities.filter(function (l) { return l.link; }); _i < _a.length; _i++) {
-            var link = _a[_i];
-            if (link.link === relation &&
-                link.from === fromEntity.id &&
-                link.to === toEntity.id) {
-                found = link;
-            }
-        }
-        return found;
-    };
-    Game.prototype.removeLink = function (fromEntity, toEntity, relation) {
-        var found = false;
-        for (var _i = 0, _a = this.entities.filter(function (l) { return l.link; }); _i < _a.length; _i++) {
-            var link = _a[_i];
-            if (link.link === relation &&
-                link.from === fromEntity.id &&
-                link.to === toEntity.id) {
-                found = true;
-                this.deleteById(link.id);
-            }
-        }
-        if (!found)
-            throw "No link found " + { fromEntity: fromEntity, toEntity: toEntity, relation: relation };
-    };
     Game.prototype.setParent = function (parentEntity, childEntity) {
         if (parentEntity === undefined ||
             parentEntity.id === undefined ||
             this.getById(parentEntity.id) === undefined)
             throw "Undefined parent.";
         this.unsetParent(childEntity);
-        this.addLink(parentEntity, childEntity, "parent");
+        childEntity.parent = parentEntity.id;
     };
     Game.prototype.setParentById = function (parentId, childId, relation) {
         if (relation === void 0) { relation = null; }
         this.setParent(this.getById(parentId), this.getById(childId));
     };
     Game.prototype.unsetParent = function (childEntity) {
-        this.unlink(childEntity, "parent");
-    };
-    Game.prototype.unlink = function (entity, relation) {
-        if (relation === void 0) { relation = null; }
-        // delete links with given relation
-        for (var _i = 0, _a = this.entities.filter(function (l) { return l.link; }); _i < _a.length; _i++) {
-            var link = _a[_i];
-            if (link.to === entity.id) {
-                if (!relation || link.link === relation)
-                    this.deleteById(link.id);
-            }
-        }
+        childEntity.parent = undefined;
     };
     Game.prototype.isParent = function (parentEntity, childEntity) {
-        return this.findLink(parentEntity, childEntity, "parent");
+        return parentEntity.id === childEntity.parent;
     };
     Game.prototype.getParent = function (childEntity) {
-        var parent = undefined;
-        for (var _i = 0, _a = this.entities.filter(function (l) { return l.link; }); _i < _a.length; _i++) {
-            var link = _a[_i];
-            if (link.link === "parent" && link.to === childEntity.id) {
-                parent = this.getById(link.from);
-            }
-        }
+        var parent = childEntity.parent === undefined
+            ? undefined
+            : this.getById(childEntity.parent);
+        console.log({ childEntity: childEntity, parent: parent });
         return parent;
     };
-    Game.prototype.getComponents = function (entity, tag) {
-        if (tag === void 0) { tag = null; }
-        var components = [];
-        for (var _i = 0, _a = this.entities.filter(function (l) { return l.link && l.link === "comp" && l.from === entity.id; }); _i < _a.length; _i++) {
-            var link = _a[_i];
-            var component = this.getById(link.to);
-            if (tag === null || component[tag] !== undefined) {
-                components.push(component);
-            }
-        }
-        return components.length === 0 ? null : components;
+    Game.prototype.getChildren = function (entity) {
+        // console.log("loop", entity.id);
+        var contents = this.entities.filter(function (e) { return e.parent === entity.id; });
+        // let contents = this.entities.filter((e) => this.isParent(entity, e));
+        return contents;
     };
     Game.prototype.getChildrenById = function (id) {
         return this.getChildren(this.getById(id));
-    };
-    Game.prototype.getChildren = function (entity) {
-        var _this = this;
-        var contents = this.entities.filter(function (e) { return _this.isParent(entity, e); });
-        return contents;
     };
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     Game.prototype.deleteById = function (id) {
@@ -358,6 +276,7 @@ var Game = /** @class */ (function () {
     };
     Game.prototype.updateEntityTreeUI = function () {
         var _this = this;
+        // time
         var ticks = this.time % timing.tps;
         var hours = Math.floor(this.time / timing.tps / 3600);
         var minutes = Math.floor(this.time / timing.tps / 60);
@@ -365,6 +284,7 @@ var Game = /** @class */ (function () {
         var game = this;
         var treeNode = document.getElementById("entityTree");
         treeNode.innerHTML = "Time: " + hours + ":" + minutes + ":" + seconds + ":" + ticks + "\n\n</br>";
+        // subtree
         function indentedSubtree(entity, depth) {
             if (depth === void 0) { depth = 0; }
             if (!entity.baseName || entity.invisible)
@@ -373,7 +293,7 @@ var Game = /** @class */ (function () {
             var focusedText = game.player.focus === entity.id ? "(focused)" : "";
             var textNode = document.createElement("a");
             // textNode.style.color = "lightgrey";
-            textNode.innerText = "|" + "----".repeat(game.getDepth(entity)) + entity.baseName + " " + healthText + focusedText + "\n";
+            textNode.innerText = "|" + "----".repeat(depth) + entity.baseName + " " + healthText + focusedText + "\n";
             textNode.className = "treeObject";
             if (game.getChildren(entity).length > 0) {
                 for (var _i = 0, _a = game
@@ -912,16 +832,18 @@ function loadMod(player, game) {
             return intents;
         },
     });
-    game.actions.fillFrom = function (fluidSourceId, fluidContainerId) {
-        var fluidSource = game.getById(fluidSourceId);
-        var fluidContainer = game.getById(fluidContainerId);
-        var fluid = game.buildObject({
-            baseName: fluidSource.fluidSource,
-        });
-        newLine("You fill up the " + fluidContainer.baseName + " from the " + fluidSource.baseName + " with " + fluid.baseName);
-        game.addEntity(fluid);
-        game.setParent(fluidContainer, fluid);
-    };
+    // game.actions.fillFrom = function (fluidSourceId, fluidContainerId) {
+    //     let fluidSource = game.getById(fluidSourceId);
+    //     let fluidContainer = game.getById(fluidContainerId);
+    //     let fluid = game.buildObject({
+    //         baseName: fluidSource.fluidSource,
+    //     });
+    //     newLine(
+    //         `You fill up the ${fluidContainer.baseName} from the ${fluidSource.baseName} with ${fluid.baseName}`
+    //     );
+    //     game.addEntity(fluid);
+    //     game.setParent(fluidContainer, fluid);
+    // };
     function fluidsIn(fluidContainer) {
         var fluidChildren = game
             .getChildren(fluidContainer)
@@ -1570,140 +1492,158 @@ teaRoomMod.loadMod(player, game);
 var debugMod = __webpack_require__(/*! ./modDebug */ "./src/modDebug.ts");
 debugMod.loadMod(player, game);
 var debug = false;
-var area = game.buildObject({ teaRoom: true, baseName: "tea room" }, [
-    ["comp", { area: true }],
-    ["comp", { dummy: true, blorp: 5 }],
-    ["contains", player],
-    // stove
-    [
-        "contains",
-        game.buildObject({ stove: true, baseName: "stove" }, [
-            ["comp", { active: false }],
-            ["comp", { surface: true }],
-            [
-                "comp",
-                {
-                    messageCounter: true,
-                    ctr: 0,
-                    ctrMax: 20,
-                    message: "The stove burns hot.",
-                },
-            ],
-            ["comp", { heatSource: true }],
-        ]),
-    ],
-    // faucet
-    [
-        "contains",
-        game.buildObject({ faucet: true, baseName: "faucet" }, [
-            ["comp", { fluidSource: "water" }],
-        ]),
-    ],
-    // punching bag
-    [
-        "contains",
-        game.buildObject({ baseName: "punching bag" }, [
-            ["comp", { enemy: true }],
-            ["comp", { health: 5 }],
-        ]),
-    ],
-    // tea cupboard
-    [
-        "contains",
-        game.buildObject({ baseName: "tea cupboard" }, [
-            ["comp", { solidContainer: true, open: false }],
-            [
-                "contains",
-                game.buildObject({ baseName: "cranberry teabag" }, [
-                    ["comp", { item: true }],
-                    ["comp", { infusable: true, flavour: "OBVIOUS" }],
-                ]),
-            ],
-        ]),
-    ],
-    [
-        "contains",
-        game.buildObject({ baseName: "table" }, [
-            ["comp", { surface: true }],
-            [
-                "contains",
-                game.buildObject({ baseName: "knife" }, [
-                    ["comp", { item: true }],
-                ]),
-            ],
-            [
-                "contains",
-                game.buildObject({ baseName: "cup" }, [
-                    ["comp", { item: true }],
-                    ["comp", { fluidContainer: true }],
-                ]),
-            ],
-            [
-                "contains",
-                game.buildObject({ baseName: "bowl" }, [
-                    ["comp", { item: true }],
-                    ["comp", { fluidContainer: true }],
-                ]),
-            ],
-            [
-                "contains",
-                game.buildObject({ baseName: "super secret note" }, [
-                    ["comp", { item: true }],
-                    [
-                        "comp",
-                        { readable: true, message: "The password is 6..." },
-                    ],
-                ]),
-            ],
-            [
-                "contains",
-                game.buildObject({ baseName: "locked chest" }, [
-                    ["comp", { solidContainer: true, open: false }],
-                    ["comp", { locked: true, password: "6" }],
-                    ["comp", { item: true }],
-                    [
-                        "contains",
-                        game.buildObject({ baseName: "smaller chest" }, [
-                            ["comp", { solidContainer: true, open: false }],
-                            ["comp", { item: true }],
-                            [
-                                "contains",
-                                game.buildObject({ baseName: "even smaller chest" }, [
-                                    [
-                                        "comp",
-                                        {
-                                            solidContainer: true,
-                                            open: false,
-                                        },
-                                    ],
-                                    ["comp", { item: true }],
-                                    [
-                                        "contains",
-                                        game.buildObject({
-                                            baseName: "secretive teabag",
-                                        }, [
-                                            ["comp", { item: true }],
-                                            [
-                                                "comp",
-                                                {
-                                                    infusable: true,
-                                                    flavour: "SECRET",
-                                                },
-                                            ],
-                                        ]),
-                                    ],
-                                ]),
-                            ],
-                        ]),
-                    ],
-                ]),
-            ],
-        ]),
-    ],
-]);
+var area = game.addEntity({
+    teaRoom: true,
+    baseName: "tea room",
+    area: true,
+    dummy: { blorp: 5 },
+});
+var stove = game.addEntity({
+    baseName: "stove",
+    active: false,
+    surface: true,
+}, area);
+game.addEntity(player, area);
+// let area = game.buildObject({ teaRoom: true, baseName: "tea room" }, [
+//     ["comp", { area: true }],
+//     ["comp", { dummy: true, blorp: 5 }],
+//     ["contains", player],
+//     // stove
+//     [
+//         "contains",
+//         game.buildObject({ stove: true, baseName: "stove" }, [
+//             ["comp", { active: false }],
+//             ["comp", { surface: true }],
+//             [
+//                 "comp",
+//                 {
+//                     messageCounter: true,
+//                     ctr: 0,
+//                     ctrMax: 20,
+//                     message: "The stove burns hot.",
+//                 },
+//             ],
+//             ["comp", { heatSource: true }],
+//         ]),
+//     ],
+//     // faucet
+//     [
+//         "contains",
+//         game.buildObject({ faucet: true, baseName: "faucet" }, [
+//             ["comp", { fluidSource: "water" }],
+//         ]),
+//     ],
+//     // punching bag
+//     [
+//         "contains",
+//         game.buildObject({ baseName: "punching bag" }, [
+//             ["comp", { enemy: true }],
+//             ["comp", { health: 5 }],
+//         ]),
+//     ],
+//     // tea cupboard
+//     [
+//         "contains",
+//         game.buildObject({ baseName: "tea cupboard" }, [
+//             ["comp", { solidContainer: true, open: false }],
+//             [
+//                 "contains",
+//                 game.buildObject({ baseName: "cranberry teabag" }, [
+//                     ["comp", { item: true }],
+//                     ["comp", { infusable: true, flavour: "OBVIOUS" }],
+//                 ]),
+//             ],
+//         ]),
+//     ],
+//     [
+//         "contains",
+//         game.buildObject({ baseName: "table" }, [
+//             ["comp", { surface: true }],
+//             [
+//                 "contains",
+//                 game.buildObject({ baseName: "knife" }, [
+//                     ["comp", { item: true }],
+//                 ]),
+//             ],
+//             [
+//                 "contains",
+//                 game.buildObject({ baseName: "cup" }, [
+//                     ["comp", { item: true }],
+//                     ["comp", { fluidContainer: true }],
+//                 ]),
+//             ],
+//             [
+//                 "contains",
+//                 game.buildObject({ baseName: "bowl" }, [
+//                     ["comp", { item: true }],
+//                     ["comp", { fluidContainer: true }],
+//                 ]),
+//             ],
+//             [
+//                 "contains",
+//                 game.buildObject({ baseName: "super secret note" }, [
+//                     ["comp", { item: true }],
+//                     [
+//                         "comp",
+//                         { readable: true, message: "The password is 6..." },
+//                     ],
+//                 ]),
+//             ],
+//             [
+//                 "contains",
+//                 game.buildObject({ baseName: "locked chest" }, [
+//                     ["comp", { solidContainer: true, open: false }],
+//                     ["comp", { locked: true, password: `6` }],
+//                     ["comp", { item: true }],
+//                     [
+//                         "contains",
+//                         game.buildObject({ baseName: "smaller chest" }, [
+//                             ["comp", { solidContainer: true, open: false }],
+//                             ["comp", { item: true }],
+//                             [
+//                                 "contains",
+//                                 game.buildObject(
+//                                     { baseName: "even smaller chest" },
+//                                     [
+//                                         [
+//                                             "comp",
+//                                             {
+//                                                 solidContainer: true,
+//                                                 open: false,
+//                                             },
+//                                         ],
+//                                         ["comp", { item: true }],
+//                                         [
+//                                             "contains",
+//                                             game.buildObject(
+//                                                 {
+//                                                     baseName:
+//                                                         "secretive teabag",
+//                                                 },
+//                                                 [
+//                                                     ["comp", { item: true }],
+//                                                     [
+//                                                         "comp",
+//                                                         {
+//                                                             infusable: true,
+//                                                             flavour: "SECRET",
+//                                                         },
+//                                                     ],
+//                                                 ]
+//                                             ),
+//                                         ],
+//                                     ]
+//                                 ),
+//                             ],
+//                         ]),
+//                     ],
+//                 ]),
+//             ],
+//         ]),
+//     ],
+// ]);
 console.log(game.entities);
 console.log("comps of area");
-console.log(game.getComponents(area, "blorp"));
 var keys = "abcdefghijklmnopqrstuwxyz".split("");
 document.addEventListener("keypress", function (event) {
     var name = event.key;
