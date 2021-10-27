@@ -23,10 +23,10 @@
 
 body {
     background-color: var(--offblack);
+    color: var(--offwhite);
 }
 
 #display {
-    color: var(--offwhite);
     overflow: scroll;
     height: 350px;
 }

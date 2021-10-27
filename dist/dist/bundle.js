@@ -25,13 +25,14 @@ var Game = /** @class */ (function () {
         this.playRandomly = false;
         this.actions = {};
     }
-    Game.prototype.addEntity = function (entity, parentEntity) {
-        if (parentEntity === void 0) { parentEntity = undefined; }
+    Game.prototype.addEntity = function (entity, parentEntity, rel) {
+        if (parentEntity === void 0) { parentEntity = null; }
+        if (rel === void 0) { rel = null; }
         this.entities.push(entity);
         entity.id = this.id;
         this.id += 1;
-        if (parentEntity !== undefined) {
-            this.setParent(parentEntity, entity);
+        if (parentEntity !== null) {
+            this.setParent(parentEntity, entity, rel);
         }
         return entity;
     };
@@ -57,17 +58,21 @@ var Game = /** @class */ (function () {
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     // PARENT
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    Game.prototype.setParent = function (parentEntity, childEntity) {
+    Game.prototype.setParent = function (parentEntity, childEntity, rel) {
+        if (rel === void 0) { rel = null; }
         if (parentEntity === undefined ||
             parentEntity.id === undefined ||
             this.getById(parentEntity.id) === undefined)
             throw "Undefined parent.";
         this.unsetParent(childEntity);
         childEntity.parent = parentEntity.id;
+        if (rel !== null) {
+            childEntity.rel = rel;
+        }
     };
-    Game.prototype.setParentById = function (parentId, childId, relation) {
-        if (relation === void 0) { relation = null; }
-        this.setParent(this.getById(parentId), this.getById(childId));
+    Game.prototype.setParentById = function (parentId, childId, rel) {
+        if (rel === void 0) { rel = null; }
+        this.setParent(this.getById(parentId), this.getById(childId), rel);
     };
     Game.prototype.unsetParent = function (childEntity) {
         childEntity.parent = undefined;
@@ -79,7 +84,6 @@ var Game = /** @class */ (function () {
         var parent = childEntity.parent === undefined
             ? undefined
             : this.getById(childEntity.parent);
-        console.log({ childEntity: childEntity, parent: parent });
         return parent;
     };
     Game.prototype.getChildren = function (entity) {
@@ -300,7 +304,9 @@ var Game = /** @class */ (function () {
                     .getChildren(entity)
                     .filter(function (e) { return game.isAccessible(e); }); _i < _a.length; _i++) {
                     var child = _a[_i];
-                    textNode.appendChild(indentedSubtree(child, depth + 1));
+                    var subtree = indentedSubtree(child, depth + 1);
+                    if (subtree !== null)
+                        textNode.appendChild(subtree);
                 }
             }
             // on click, focus action
@@ -573,208 +579,6 @@ exports.Player = Player;
 
 /***/ }),
 
-/***/ "./src/modDebug.ts":
-/*!*************************!*\
-  !*** ./src/modDebug.ts ***!
-  \*************************/
-/***/ ((module, exports, __webpack_require__) => {
-
-
-Object.defineProperty(exports, "__esModule", ({ value: true }));
-var utils = __webpack_require__(/*! ./utils */ "./src/utils.ts");
-var timing = __webpack_require__(/*! ./timing */ "./src/timing.ts");
-var newLine = utils.newLine;
-function loadMod(player, game) {
-    game.actions.newLine = utils.newLine;
-    game.actions.wait = function (ticks) {
-        game.actions.newLine("Still waiting... of " + ticks);
-    };
-    function createNewLineAction(text) {
-        return {
-            func: "newLine",
-            args: [text],
-        };
-    }
-    function createWaitAction(ticks) {
-        return {
-            func: "wait",
-            args: [ticks],
-            duration: ticks,
-            pause: timing.mpt / Math.pow(ticks, 1),
-        };
-    }
-    // wait various durations
-    player.patterns.push({
-        intents: function () {
-            var intents = [];
-            var durations = [
-                { baseName: "1 tick", dur: 1 },
-                { baseName: "3 ticks", dur: 3 },
-                { baseName: "6 ticks", dur: 6 },
-            ];
-            for (var _i = 0, durations_1 = durations; _i < durations_1.length; _i++) {
-                var duration = durations_1[_i];
-                var intent = {
-                    representation: [
-                        game.word("wait"),
-                        game.word(duration.baseName),
-                    ],
-                    sequence: [
-                        createNewLineAction("You wait " + duration.dur + " ticks."),
-                        createWaitAction(duration.dur),
-                    ],
-                };
-                intents.push(intent);
-            }
-            return intents;
-        },
-    });
-    // random clapping
-    player.addPattern({
-        intents: function () {
-            var intents = [];
-            // the effect function
-            function effect() {
-                newLine("CLAP!");
-            }
-            // the sequence
-            intents.push({
-                representation: [game.word("DEBUG"), game.word("slow clap.")],
-                sequence: [
-                    createWaitAction(4),
-                    createNewLineAction("CLAP!"),
-                    createWaitAction(2),
-                    createNewLineAction("CLAP!"),
-                    createNewLineAction("CLAP!"),
-                    createWaitAction(2),
-                    createNewLineAction("CLAP!"),
-                    createNewLineAction("CLAP!"),
-                    createNewLineAction("CLAP!"),
-                ],
-            });
-            return intents;
-        },
-    });
-    function createPingAction() {
-        return {
-            func: "newLine",
-            args: ["ping"],
-            pause: 100,
-            signals: [{ type: "ping" }],
-            duration: 0,
-        };
-    }
-    // 3x ping, to be responded to with pong and peng
-    player.addPattern({
-        intents: function () {
-            var intents = [];
-            intents.push({
-                representation: [game.word("DEBUG"), game.word("3 x ping.")],
-                sequence: [
-                    createPingAction(),
-                    createPingAction(),
-                    createPingAction(),
-                ],
-            });
-            return intents;
-        },
-    });
-    game.receivers.push({
-        on_ping: function (data) {
-            game.enqueue({
-                func: "newLine",
-                args: ["Pong!"],
-                signals: [{ type: "pong" }],
-                pause: 300,
-            });
-        },
-    });
-    game.receivers.push({
-        on_pong: function (data) {
-            game.enqueue({
-                func: "newLine",
-                args: ["Peng!"],
-                signals: [{ type: "peng" }],
-                pause: 300,
-            });
-        },
-    });
-    // plain longer action
-    player.addPattern({
-        intents: function () {
-            var intents = [];
-            // the sequence
-            intents.push({
-                representation: [
-                    game.word("DEBUG"),
-                    game.word("POW"),
-                    game.word("POW"),
-                    game.word("POW"),
-                ],
-                sequence: [createNewLineAction("POW POW POW!")],
-            });
-            return intents;
-        },
-    });
-    // plain shorter action
-    player.addPattern({
-        intents: function () {
-            var intents = [];
-            // the sequence
-            intents.push({
-                representation: [game.word("DEBUG"), game.word("POW")],
-                sequence: [createNewLineAction("POW!")],
-            });
-            return intents;
-        },
-    });
-    // duration 2 action that releases pings
-    player.addPattern({
-        intents: function () {
-            var intents = [];
-            // the sequence
-            intents.push({
-                representation: [game.word("DEBUG"), game.word("long-ping")],
-                sequence: [
-                    {
-                        func: "newLine",
-                        args: ["piiiiiiiiing!"],
-                        pause: 300,
-                        signals: [{ type: "ping" }],
-                        duration: 2,
-                    },
-                ],
-            });
-            return intents;
-        },
-    });
-    // 3 ticks
-    player.addPattern({
-        intents: function () {
-            var intents = [];
-            // the sequence
-            intents.push({
-                representation: [game.word("DEBUG"), game.word("wait 3 ticks")],
-                sequence: [createWaitAction(3)],
-            });
-            return intents;
-        },
-    });
-    // tick timers up
-    game.receivers.push({
-        on_tick: function (data) {
-            for (var _i = 0, _a = game.entities.filter(function (e) { return e.type === "timer"; }); _i < _a.length; _i++) {
-                var timer = _a[_i];
-                timer.time += 1;
-            }
-        },
-    });
-}
-module.exports = { loadMod: loadMod };
-
-
-/***/ }),
-
 /***/ "./src/modTeaRoom.ts":
 /*!***************************!*\
   !*** ./src/modTeaRoom.ts ***!
@@ -832,18 +636,15 @@ function loadMod(player, game) {
             return intents;
         },
     });
-    // game.actions.fillFrom = function (fluidSourceId, fluidContainerId) {
-    //     let fluidSource = game.getById(fluidSourceId);
-    //     let fluidContainer = game.getById(fluidContainerId);
-    //     let fluid = game.buildObject({
-    //         baseName: fluidSource.fluidSource,
-    //     });
-    //     newLine(
-    //         `You fill up the ${fluidContainer.baseName} from the ${fluidSource.baseName} with ${fluid.baseName}`
-    //     );
-    //     game.addEntity(fluid);
-    //     game.setParent(fluidContainer, fluid);
-    // };
+    game.actions.fillFrom = function (fluidSourceId, fluidContainerId) {
+        var fluidSource = game.getById(fluidSourceId);
+        var fluidContainer = game.getById(fluidContainerId);
+        var fluid = game.addEntity({
+            baseName: fluidSource.fluidSource,
+            fluid: true,
+        }, fluidContainer);
+        newLine("You fill up the " + fluidContainer.baseName + " from the " + fluidSource.baseName + " with " + fluid.baseName);
+    };
     function fluidsIn(fluidContainer) {
         var fluidChildren = game
             .getChildren(fluidContainer)
@@ -1477,20 +1278,20 @@ var exports = __webpack_exports__;
 
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 var utils = __webpack_require__(/*! ./utils */ "./src/utils.ts");
+var GameModule = __webpack_require__(/*! ./GameModule */ "./src/GameModule.ts");
+var PlayerModule = __webpack_require__(/*! ./PlayerModule */ "./src/PlayerModule.ts");
 // HACK
 // let newLine = utils.newLine;
 // import { newLine } from "./utils";
 utils.newLine("Test");
-var GameModule = __webpack_require__(/*! ./GameModule */ "./src/GameModule.ts");
 var game = new GameModule.Game();
-var PlayerModule = __webpack_require__(/*! ./PlayerModule */ "./src/PlayerModule.ts");
 var player = new PlayerModule.Player();
 game.player = player;
 // load mods
 var teaRoomMod = __webpack_require__(/*! ./modTeaRoom */ "./src/modTeaRoom.ts");
 teaRoomMod.loadMod(player, game);
-var debugMod = __webpack_require__(/*! ./modDebug */ "./src/modDebug.ts");
-debugMod.loadMod(player, game);
+// let debugMod = require("./modDebug");
+// debugMod.loadMod(player, game);
 var debug = false;
 var area = game.addEntity({
     teaRoom: true,
@@ -1498,150 +1299,86 @@ var area = game.addEntity({
     area: true,
     dummy: { blorp: 5 },
 });
+game.addEntity(player, area);
 var stove = game.addEntity({
     baseName: "stove",
     active: false,
     surface: true,
+    messageCounter: {
+        messages: [
+            "The stove's flame burns a warm orange.",
+            "The stove's flame crackles",
+        ],
+        ctr: 0,
+        ctrMax: 20,
+    },
 }, area);
-game.addEntity(player, area);
-// let area = game.buildObject({ teaRoom: true, baseName: "tea room" }, [
-//     ["comp", { area: true }],
-//     ["comp", { dummy: true, blorp: 5 }],
-//     ["contains", player],
-//     // stove
-//     [
-//         "contains",
-//         game.buildObject({ stove: true, baseName: "stove" }, [
-//             ["comp", { active: false }],
-//             ["comp", { surface: true }],
-//             [
-//                 "comp",
-//                 {
-//                     messageCounter: true,
-//                     ctr: 0,
-//                     ctrMax: 20,
-//                     message: "The stove burns hot.",
-//                 },
-//             ],
-//             ["comp", { heatSource: true }],
-//         ]),
-//     ],
-//     // faucet
-//     [
-//         "contains",
-//         game.buildObject({ faucet: true, baseName: "faucet" }, [
-//             ["comp", { fluidSource: "water" }],
-//         ]),
-//     ],
-//     // punching bag
-//     [
-//         "contains",
-//         game.buildObject({ baseName: "punching bag" }, [
-//             ["comp", { enemy: true }],
-//             ["comp", { health: 5 }],
-//         ]),
-//     ],
-//     // tea cupboard
-//     [
-//         "contains",
-//         game.buildObject({ baseName: "tea cupboard" }, [
-//             ["comp", { solidContainer: true, open: false }],
-//             [
-//                 "contains",
-//                 game.buildObject({ baseName: "cranberry teabag" }, [
-//                     ["comp", { item: true }],
-//                     ["comp", { infusable: true, flavour: "OBVIOUS" }],
-//                 ]),
-//             ],
-//         ]),
-//     ],
-//     [
-//         "contains",
-//         game.buildObject({ baseName: "table" }, [
-//             ["comp", { surface: true }],
-//             [
-//                 "contains",
-//                 game.buildObject({ baseName: "knife" }, [
-//                     ["comp", { item: true }],
-//                 ]),
-//             ],
-//             [
-//                 "contains",
-//                 game.buildObject({ baseName: "cup" }, [
-//                     ["comp", { item: true }],
-//                     ["comp", { fluidContainer: true }],
-//                 ]),
-//             ],
-//             [
-//                 "contains",
-//                 game.buildObject({ baseName: "bowl" }, [
-//                     ["comp", { item: true }],
-//                     ["comp", { fluidContainer: true }],
-//                 ]),
-//             ],
-//             [
-//                 "contains",
-//                 game.buildObject({ baseName: "super secret note" }, [
-//                     ["comp", { item: true }],
-//                     [
-//                         "comp",
-//                         { readable: true, message: "The password is 6..." },
-//                     ],
-//                 ]),
-//             ],
-//             [
-//                 "contains",
-//                 game.buildObject({ baseName: "locked chest" }, [
-//                     ["comp", { solidContainer: true, open: false }],
-//                     ["comp", { locked: true, password: `6` }],
-//                     ["comp", { item: true }],
-//                     [
-//                         "contains",
-//                         game.buildObject({ baseName: "smaller chest" }, [
-//                             ["comp", { solidContainer: true, open: false }],
-//                             ["comp", { item: true }],
-//                             [
-//                                 "contains",
-//                                 game.buildObject(
-//                                     { baseName: "even smaller chest" },
-//                                     [
-//                                         [
-//                                             "comp",
-//                                             {
-//                                                 solidContainer: true,
-//                                                 open: false,
-//                                             },
-//                                         ],
-//                                         ["comp", { item: true }],
-//                                         [
-//                                             "contains",
-//                                             game.buildObject(
-//                                                 {
-//                                                     baseName:
-//                                                         "secretive teabag",
-//                                                 },
-//                                                 [
-//                                                     ["comp", { item: true }],
-//                                                     [
-//                                                         "comp",
-//                                                         {
-//                                                             infusable: true,
-//                                                             flavour: "SECRET",
-//                                                         },
-//                                                     ],
-//                                                 ]
-//                                             ),
-//                                         ],
-//                                     ]
-//                                 ),
-//                             ],
-//                         ]),
-//                     ],
-//                 ]),
-//             ],
-//         ]),
-//     ],
-// ]);
+var faucet = game.addEntity({
+    baseName: "faucet",
+    fluidSource: "water",
+}, area);
+var punchingBag = game.addEntity({
+    baseName: "punching bag",
+    health: 5,
+}, area);
+var teaCupboard = game.addEntity({
+    baseName: "tea cupboard",
+    solidContainer: {
+        open: false,
+    },
+}, area);
+var cranberryTeabag = game.addEntity({
+    item: true,
+    infusable: {
+        flavour: "OBVIOUS",
+    },
+}, teaCupboard);
+var table = game.addEntity({
+    baseName: "table",
+    surface: true,
+}, area);
+var knife = game.addEntity({
+    baseName: "knife",
+    item: true,
+}, table, "on");
+var cup = game.addEntity({
+    baseName: "cup",
+    item: true,
+    fluidContainer: true,
+}, table, "on");
+var bowl = game.addEntity({
+    baseName: "bowl",
+    item: true,
+    fluidContainer: true,
+}, table, "on");
+var note = game.addEntity({
+    baseName: "super secret note",
+    item: true,
+    readable: {
+        message: "The note says: \"The password is 6...",
+    },
+}, table, "on");
+var lockedChest = game.addEntity({
+    baseName: "locked chest",
+    solidContainer: { open: false },
+    item: true,
+    locked: { password: "6" },
+}, table, "on");
+var smallerChest = game.addEntity({
+    baseName: "smaller chest",
+    solidContainer: { open: false },
+    item: true,
+}, lockedChest, "in");
+var evenSmallerChest = game.addEntity({
+    baseName: "even smaller chest",
+    solidContainer: { open: false },
+    item: true,
+}, smallerChest, "in");
+var secretTeabag = game.addEntity({
+    baseName: "secretive teabag",
+    item: true,
+    infusable: { flavour: "SECRET" },
+}, smallerChest, "in");
 console.log(game.entities);
 console.log("comps of area");
 var keys = "abcdefghijklmnopqrstuwxyz".split("");

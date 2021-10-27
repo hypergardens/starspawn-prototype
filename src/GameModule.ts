@@ -37,12 +37,12 @@ export class Game {
         this.actions = {};
     }
 
-    addEntity(entity: any, parentEntity = undefined): number {
+    addEntity(entity: any, parentEntity = null, rel: string = null): any {
         this.entities.push(entity);
         entity.id = this.id;
         this.id += 1;
-        if (parentEntity !== undefined) {
-            this.setParent(parentEntity, entity);
+        if (parentEntity !== null) {
+            this.setParent(parentEntity, entity, rel);
         }
         return entity;
     }
@@ -71,7 +71,7 @@ export class Game {
     // PARENT
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-    setParent(parentEntity: Entity, childEntity: Entity) {
+    setParent(parentEntity: Entity, childEntity: Entity, rel: string = null) {
         if (
             parentEntity === undefined ||
             parentEntity.id === undefined ||
@@ -80,10 +80,13 @@ export class Game {
             throw "Undefined parent.";
         this.unsetParent(childEntity);
         childEntity.parent = parentEntity.id;
+        if (rel !== null) {
+            childEntity.rel = rel;
+        }
     }
 
-    setParentById(parentId, childId, relation = null) {
-        this.setParent(this.getById(parentId), this.getById(childId));
+    setParentById(parentId, childId, rel = null) {
+        this.setParent(this.getById(parentId), this.getById(childId), rel);
     }
 
     unsetParent(childEntity) {
@@ -99,7 +102,6 @@ export class Game {
             childEntity.parent === undefined
                 ? undefined
                 : this.getById(childEntity.parent);
-        console.log({ childEntity, parent });
         return parent;
     }
 
@@ -323,7 +325,8 @@ export class Game {
                 for (let child of game
                     .getChildren(entity)
                     .filter((e) => game.isAccessible(e))) {
-                    textNode.appendChild(indentedSubtree(child, depth + 1));
+                    let subtree = indentedSubtree(child, depth + 1);
+                    if (subtree !== null) textNode.appendChild(subtree);
                 }
             }
 
