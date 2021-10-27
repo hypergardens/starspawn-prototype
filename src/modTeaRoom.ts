@@ -2,7 +2,7 @@ import * as utils from "./utils";
 import * as timing from "./timing";
 import * as GameModule from "./GameModule";
 
-import { Entity } from "./interfaces";
+import { Entity } from "./Interfaces";
 
 let newLine = utils.newLine;
 function loadMod(player, game: GameModule.Game) {

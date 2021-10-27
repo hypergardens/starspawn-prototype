@@ -10,6 +10,9 @@
 
 
 Object.defineProperty(exports, "__esModule", ({ value: true }));
+// let utils = require("./utils")
+// let timing = require("./timing");
+var utils = __webpack_require__(/*! ./utils */ "./src/utils.ts");
 var timing = __webpack_require__(/*! ./timing */ "./src/timing.ts");
 var Game = /** @class */ (function () {
     function Game() {
@@ -131,10 +134,9 @@ var Game = /** @class */ (function () {
         this.queue = [];
         this.intentsReady = true;
         var _loop_1 = function (entity) {
-            var sequence = entity.sequence;
-            // console.log({ sequence })
+            var intent = entity.actor.intent;
             // empty intent
-            if (!sequence || (sequence && sequence.length === 0)) {
+            if (!intent) {
                 this_1.intentsReady = false;
                 // hang and reset for player input
                 if (entity.player) {
@@ -156,39 +158,43 @@ var Game = /** @class */ (function () {
                     }, 1);
                 }
             }
-            else if (sequence.length > 0) {
+            else if (intent && intent.sequence.length > 0) {
                 // extract actions and enqueue them
                 var ticks = 0;
-                var i = 0;
                 // extract actions until we go over 1 tick
-                while (ticks === 0 && i < sequence.length) {
-                    var action = sequence[i];
+                while (ticks === 0 && intent.sequence.length > 0) {
+                    var action = intent.sequence[0];
                     this_1.enqueue(action);
                     // console.log(`queued up`, action);
                     // queue up actions including the first with duration
                     if (action.duration <= 0 || action.duration === undefined) {
                         // instant action, keep queueing
-                        sequence.splice(i, 1);
+                        intent.sequence.splice(0, 1);
                     }
                     else if (action.duration > 0) {
                         // action that will be taken multiple times
                         ticks = action.duration;
                         // end actions here
                         if (action.duration <= 1) {
-                            sequence.splice(i, 1);
+                            intent.sequence.splice(0, 1);
                         }
                         // console.log(`action with ${ticks} duration`, action);
                         // TODO: make multiple intent declarations possible per tick?
                         action.duration -= 1;
+                        intent.elapsed += 1;
+                        utils.newLine(intent.elapsed + "/" + intent.totalDuration);
                     }
                     else {
                         // throw `Not sure what this means`;
                     }
                 }
+                if (intent.sequence.length === 0) {
+                    entity.actor.intent = null;
+                }
             }
         };
         var this_1 = this;
-        for (var _i = 0, _a = this.entities.filter(function (e) { return e.sequence; }); _i < _a.length; _i++) {
+        for (var _i = 0, _a = this.entities.filter(function (e) { return e.actor; }); _i < _a.length; _i++) {
             var entity = _a[_i];
             _loop_1(entity);
         }
@@ -401,7 +407,9 @@ var Player = /** @class */ (function () {
     function Player() {
         this.baseName = "player";
         this.player = true;
-        this.sequence = [];
+        this.actor = {
+            intent: null,
+        };
         this.picking = false;
         this.command = [];
         this.patterns = [];
@@ -514,7 +522,10 @@ var Player = /** @class */ (function () {
             }
             if (valid) {
                 // set intent, not picking
-                this.sequence = intent.sequence;
+                this.actor.intent = intent;
+                intent.totalDuration = intent.sequence.reduce(function (sum, action) { return sum + action.duration || 0; }, 0);
+                intent.elapsed = 0;
+                console.log({ intent: intent });
                 this.picking = false;
                 this.focus = null;
                 // clear command
@@ -575,6 +586,213 @@ var Player = /** @class */ (function () {
     return Player;
 }());
 exports.Player = Player;
+
+
+/***/ }),
+
+/***/ "./src/modDebug.ts":
+/*!*************************!*\
+  !*** ./src/modDebug.ts ***!
+  \*************************/
+/***/ ((module, exports, __webpack_require__) => {
+
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+var utils = __webpack_require__(/*! ./utils */ "./src/utils.ts");
+var timing = __webpack_require__(/*! ./timing */ "./src/timing.ts");
+var newLine = utils.newLine;
+function loadMod(player, game) {
+    game.actions.newLine = utils.newLine;
+    game.actions.wait = function (ticks) {
+        // game.actions.newLine(`Still waiting... of ${ticks}`);
+    };
+    function createNewLineAction(text) {
+        return {
+            func: "newLine",
+            args: [text],
+        };
+    }
+    function createWaitAction(ticks) {
+        return {
+            func: "wait",
+            args: [ticks],
+            duration: ticks,
+            // 1 -> 1, 10 -> 2
+            pause: timing.mpt / Math.pow(ticks, 1),
+        };
+    }
+    // wait various durations
+    player.patterns.push({
+        intents: function () {
+            var intents = [];
+            var durations = [
+                { baseName: "1 tick", dur: 1 },
+                { baseName: "3 ticks", dur: 3 },
+                { baseName: "6 ticks", dur: 6 },
+                // { baseName: "12 ticks", dur: 12 },
+                { baseName: "1 minute", dur: timing.m(1) },
+                { baseName: "1 hour", dur: timing.h(1) },
+                { baseName: "1 day", dur: timing.h(24) },
+            ];
+            for (var _i = 0, durations_1 = durations; _i < durations_1.length; _i++) {
+                var duration = durations_1[_i];
+                var intent = {
+                    representation: [
+                        game.word("wait"),
+                        game.word(duration.baseName),
+                    ],
+                    sequence: [
+                        createNewLineAction("You wait " + duration.dur + " ticks."),
+                        createWaitAction(duration.dur),
+                    ],
+                };
+                intents.push(intent);
+            }
+            return intents;
+        },
+    });
+    // random clapping
+    player.addPattern({
+        intents: function () {
+            var intents = [];
+            // the effect function
+            function effect() {
+                newLine("CLAP!");
+            }
+            // the sequence
+            intents.push({
+                representation: [game.word("DEBUG"), game.word("slow clap.")],
+                sequence: [
+                    createWaitAction(4),
+                    createNewLineAction("CLAP!"),
+                    createWaitAction(2),
+                    createNewLineAction("CLAP!"),
+                    createNewLineAction("CLAP!"),
+                    createWaitAction(2),
+                    createNewLineAction("CLAP!"),
+                    createNewLineAction("CLAP!"),
+                    createNewLineAction("CLAP!"),
+                ],
+            });
+            return intents;
+        },
+    });
+    function createPingAction() {
+        return {
+            func: "newLine",
+            args: ["ping"],
+            pause: 100,
+            signals: [{ type: "ping" }],
+            duration: 0,
+        };
+    }
+    // 3x ping, to be responded to with pong and peng
+    player.addPattern({
+        intents: function () {
+            var intents = [];
+            intents.push({
+                representation: [game.word("DEBUG"), game.word("3 x ping.")],
+                sequence: [
+                    createPingAction(),
+                    createPingAction(),
+                    createPingAction(),
+                ],
+            });
+            return intents;
+        },
+    });
+    game.receivers.push({
+        on_ping: function (data) {
+            game.enqueue({
+                func: "newLine",
+                args: ["Pong!"],
+                signals: [{ type: "pong" }],
+                pause: 300,
+            });
+        },
+    });
+    game.receivers.push({
+        on_pong: function (data) {
+            game.enqueue({
+                func: "newLine",
+                args: ["Peng!"],
+                signals: [{ type: "peng" }],
+                pause: 300,
+            });
+        },
+    });
+    // plain longer action
+    player.addPattern({
+        intents: function () {
+            var intents = [];
+            // the sequence
+            intents.push({
+                representation: [
+                    game.word("DEBUG"),
+                    game.word("POW"),
+                    game.word("POW"),
+                    game.word("POW"),
+                ],
+                sequence: [createNewLineAction("POW POW POW!")],
+            });
+            return intents;
+        },
+    });
+    // plain shorter action
+    player.addPattern({
+        intents: function () {
+            var intents = [];
+            // the sequence
+            intents.push({
+                representation: [game.word("DEBUG"), game.word("POW")],
+                sequence: [createNewLineAction("POW!")],
+            });
+            return intents;
+        },
+    });
+    // duration 2 action that releases pings
+    player.addPattern({
+        intents: function () {
+            var intents = [];
+            // the sequence
+            intents.push({
+                representation: [game.word("DEBUG"), game.word("long-ping")],
+                sequence: [
+                    {
+                        func: "newLine",
+                        args: ["piiiiiiiiing!"],
+                        pause: 300,
+                        signals: [{ type: "ping" }],
+                        duration: 2,
+                    },
+                ],
+            });
+            return intents;
+        },
+    });
+    // 3 ticks
+    player.addPattern({
+        intents: function () {
+            var intents = [];
+            // the sequence
+            intents.push({
+                representation: [game.word("DEBUG"), game.word("wait 3 ticks")],
+                sequence: [createWaitAction(3)],
+            });
+            return intents;
+        },
+    });
+    // tick timers up
+    game.receivers.push({
+        on_tick: function (data) {
+            for (var _i = 0, _a = game.entities.filter(function (e) { return e.type === "timer"; }); _i < _a.length; _i++) {
+                var timer = _a[_i];
+                timer.time += 1;
+            }
+        },
+    });
+}
+module.exports = { loadMod: loadMod };
 
 
 /***/ }),
@@ -1215,9 +1433,21 @@ module.exports = { loadMod: loadMod };
 
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 // ticks per second
-exports.tps = 6;
+exports.tps = 1;
 // milliseconds per tick
-exports.mpt = 5;
+exports.mpt = 10;
+function s(nr) {
+    return exports.tps * nr;
+}
+exports.s = s;
+function m(nr) {
+    return exports.tps * nr * 60;
+}
+exports.m = m;
+function h(nr) {
+    return exports.tps * nr * 3600;
+}
+exports.h = h;
 
 
 /***/ }),
@@ -1292,8 +1522,8 @@ game.player = player;
 // load mods
 var teaRoomMod = __webpack_require__(/*! ./modTeaRoom */ "./src/modTeaRoom.ts");
 teaRoomMod.loadMod(player, game);
-// let debugMod = require("./modDebug");
-// debugMod.loadMod(player, game);
+var debugMod = __webpack_require__(/*! ./modDebug */ "./src/modDebug.ts");
+debugMod.loadMod(player, game);
 var debug = false;
 var area = game.addEntity({
     baseName: "tea room",

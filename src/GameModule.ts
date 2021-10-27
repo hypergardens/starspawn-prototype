@@ -2,9 +2,10 @@
 // let timing = require("./timing");
 import * as utils from "./utils";
 import * as timing from "./timing";
-import { Entity, Signal } from "./interfaces";
+import { Entity, Signal } from "./Interfaces";
 
 import { Player } from "./PlayerModule";
+import { LogItem } from "./LogItem";
 
 export class Game {
     id: number;
@@ -153,11 +154,10 @@ export class Game {
         // get this tick's Actions {aedpcs} for every entity with intent (null or Intent)
         this.queue = [];
         this.intentsReady = true;
-        for (let entity of this.entities.filter((e) => e.sequence)) {
-            let sequence = entity.sequence;
-            // console.log({ sequence })
+        for (let entity of this.entities.filter((e) => e.actor)) {
+            let intent = entity.actor.intent;
             // empty intent
-            if (!sequence || (sequence && sequence.length === 0)) {
+            if (!intent) {
                 this.intentsReady = false;
                 // hang and reset for player input
                 if (entity.player) {
@@ -183,34 +183,40 @@ export class Game {
                         this.getIntents();
                     }, 1);
                 }
-            } else if (sequence.length > 0) {
+            } else if (intent && intent.sequence.length > 0) {
                 // extract actions and enqueue them
                 let ticks = 0;
-                let i = 0;
 
                 // extract actions until we go over 1 tick
-                while (ticks === 0 && i < sequence.length) {
-                    let action = sequence[i];
+                while (ticks === 0 && intent.sequence.length > 0) {
+                    let action = intent.sequence[0];
                     this.enqueue(action);
                     // console.log(`queued up`, action);
 
                     // queue up actions including the first with duration
                     if (action.duration <= 0 || action.duration === undefined) {
                         // instant action, keep queueing
-                        sequence.splice(i, 1);
+                        intent.sequence.splice(0, 1);
                     } else if (action.duration > 0) {
                         // action that will be taken multiple times
                         ticks = action.duration;
                         // end actions here
                         if (action.duration <= 1) {
-                            sequence.splice(i, 1);
+                            intent.sequence.splice(0, 1);
                         }
                         // console.log(`action with ${ticks} duration`, action);
                         // TODO: make multiple intent declarations possible per tick?
                         action.duration -= 1;
+                        intent.elapsed += 1;
+                        utils.newLine(
+                            `${intent.elapsed}/${intent.totalDuration}`
+                        );
                     } else {
                         // throw `Not sure what this means`;
                     }
+                }
+                if (intent.sequence.length === 0) {
+                    entity.actor.intent = null;
                 }
             }
         }

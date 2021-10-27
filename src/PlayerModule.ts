@@ -1,17 +1,20 @@
 export class Player {
     baseName: string;
     player: boolean;
-    sequence: any[];
     picking: boolean;
     command: any[];
     patterns: any[];
     focus: number;
     id: number;
-
+    actor: {
+        intent: any;
+    };
     constructor() {
         this.baseName = "player";
         this.player = true;
-        this.sequence = [];
+        this.actor = {
+            intent: null,
+        };
         this.picking = false;
         this.command = [];
         this.patterns = [];
@@ -127,7 +130,13 @@ export class Player {
             }
             if (valid) {
                 // set intent, not picking
-                this.sequence = intent.sequence;
+                this.actor.intent = intent;
+                intent.totalDuration = intent.sequence.reduce(
+                    (sum, action) => sum + action.duration || 0,
+                    0
+                );
+                intent.elapsed = 0;
+                console.log({ intent });
                 this.picking = false;
                 this.focus = null;
                 // clear command

@@ -18,6 +18,8 @@ Action
 Intent
     representation: Entity[]
     sequence: Action[]
+    c: totalDuration
+    c: elapsed
 
 Word < Entity
 

@@ -21,6 +21,7 @@ function loadMod(player, game) {
             func: "wait",
             args: [ticks],
             duration: ticks,
+            // 1 -> 1, 10 -> 2
             pause: timing.mpt / Math.pow(ticks, 1),
         };
     }
@@ -34,7 +35,9 @@ function loadMod(player, game) {
                 { baseName: "3 ticks", dur: 3 },
                 { baseName: "6 ticks", dur: 6 },
                 // { baseName: "12 ticks", dur: 12 },
-                // { baseName: "60 ticks", dur: 60 },
+                { baseName: "1 minute", dur: timing.m(1) },
+                { baseName: "1 hour", dur: timing.h(1) },
+                { baseName: "1 day", dur: timing.h(24) },
             ];
             for (let duration of durations) {
                 let intent = {

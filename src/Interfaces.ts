@@ -44,6 +44,14 @@ export interface Entity {
     ctr?: number;
 
     // PLAYER
+    actor?: {
+        intent: {
+            representation: any[];
+            sequence: any[];
+            elapsed: number;
+            totalDuration: number;
+        };
+    };
     setOptionsUI?: any;
     getNextWords?: any;
     pickNextWord?: any;
