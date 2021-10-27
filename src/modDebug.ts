@@ -6,7 +6,7 @@ function loadMod(player, game) {
     game.actions.newLine = utils.newLine;
 
     game.actions.wait = function (ticks) {
-        game.actions.newLine(`Still waiting... of ${ticks}`);
+        // game.actions.newLine(`Still waiting... of ${ticks}`);
     };
 
     function createNewLineAction(text) {

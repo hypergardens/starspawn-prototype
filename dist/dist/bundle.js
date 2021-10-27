@@ -104,7 +104,8 @@ var Game = /** @class */ (function () {
         if (entity === undefined || this.getParent(entity) === undefined)
             return true;
         var parent = this.getParent(entity);
-        var accessible = !parent.closed && !parent.locked;
+        var accessible = (parent.closed === false || parent.closed === undefined) &&
+            (parent.locked === undefined || parent.locked.isLocked === false);
         return accessible && this.isAccessible(parent);
     };
     Game.prototype.enqueue = function (action, i) {
@@ -400,7 +401,6 @@ var Player = /** @class */ (function () {
     function Player() {
         this.baseName = "player";
         this.player = true;
-        this.intent = null; // intent
         this.sequence = [];
         this.picking = false;
         this.command = [];
@@ -594,7 +594,7 @@ function loadMod(player, game) {
     game.actions.newLine = utils.newLine;
     game.actions.wait = function (ticks) {
         if (ticks === void 0) { ticks = 0; }
-        game.actions.newLine("Still waiting... of " + ticks);
+        // game.actions.newLine(`Still waiting... of ${ticks}`);
     };
     function createNewLineAction(text) {
         return {
@@ -642,6 +642,7 @@ function loadMod(player, game) {
         var fluid = game.addEntity({
             baseName: fluidSource.fluidSource,
             fluid: true,
+            temperature: 20,
         }, fluidContainer);
         newLine("You fill up the " + fluidContainer.baseName + " from the " + fluidSource.baseName + " with " + fluid.baseName);
     };
@@ -868,8 +869,8 @@ function loadMod(player, game) {
     });
     game.actions.tryUnlock = function (chestId, trialPassword) {
         var chest = game.getById(chestId);
-        if (trialPassword === chest.lockedContainer.password) {
-            chest.locked = false;
+        if (trialPassword === chest.locked.password) {
+            chest.locked.isLocked = false;
             newLine("The locks click open.");
         }
         else {
@@ -879,7 +880,7 @@ function loadMod(player, game) {
     player.addPattern({
         intents: function () {
             var intents = [];
-            for (var _i = 0, _a = game.entities.filter(function (e) { return e.lockedContainer && e.locked && game.isAccessible(e); }); _i < _a.length; _i++) {
+            for (var _i = 0, _a = game.entities.filter(function (e) { return e.locked && game.isAccessible(e); }); _i < _a.length; _i++) {
                 var chest = _a[_i];
                 for (var i0 = 0; i0 < 10; i0++) {
                     // for (let i1 = 0; i1 < 10; i1++) {
@@ -909,14 +910,14 @@ function loadMod(player, game) {
     player.addPattern({
         intents: function () {
             var intents = [];
-            for (var _i = 0, _a = game.entities.filter(function (e) { return e.note; }); _i < _a.length; _i++) {
+            for (var _i = 0, _a = game.entities.filter(function (e) { return e.readable; }); _i < _a.length; _i++) {
                 var entity = _a[_i];
                 // the sequence
                 intents.push({
                     representation: [game.word("read"), entity],
                     sequence: [
                         createNewLineAction("You read the note..."),
-                        createNewLineAction("" + entity.note.content),
+                        createNewLineAction("" + entity.readable.message),
                     ],
                 });
             }
@@ -925,10 +926,10 @@ function loadMod(player, game) {
     });
     game.actions.tryOpen = function (entityId) {
         var entity = game.getById(entityId);
-        if (entity.locked) {
+        if (entity.locked && entity.locked.isLocked) {
             newLine("The " + entity.baseName + " seems to be locked...");
         }
-        else {
+        else if (entity.closed === true) {
             entity.closed = false;
             newLine("You open the " + entity.baseName);
             newLine("It contains: " + game
@@ -1054,7 +1055,7 @@ function loadMod(player, game) {
         target.health -= 2;
         game.emitSignal({
             type: "damageDealt",
-            by: player,
+            by: attacker,
             to: target,
             amount: 2,
         });
@@ -1091,9 +1092,9 @@ function loadMod(player, game) {
                 game.addEntity({
                     baseName: "VICTORIOUS teabag",
                     item: true,
-                    flammable: true,
-                    infusable: true,
-                    flavour: "VICTORY",
+                    infusable: {
+                        flavour: "VICTORY",
+                    },
                 }, game.getParent(data.to));
             }
         },
@@ -1104,18 +1105,22 @@ function loadMod(player, game) {
                 if (stove.active) {
                     stove.ctr += 1;
                     // put out a message regularly
-                    if (stove.ctr >= 20) {
+                    if (stove.ctr >= 2) {
                         stove.ctr = 0;
                         newLine("The stove's flame burns a warm orange.");
                     }
                     var _loop_2 = function (containerOnStove) {
-                        // newLine(`The stove heats up the ${containerOnStove.baseName}`)
+                        // newLine(
+                        //     `The stove heats up the ${containerOnStove.baseName}`
+                        // );
                         for (var _i = 0, _a = game.entities.filter(function (fluid) {
                             return fluid.fluid &&
                                 game.isParent(containerOnStove, fluid);
                         }); _i < _a.length; _i++) {
                             var fluid = _a[_i];
-                            // newLine(`The stove heats up the ${fluid.baseName} in the ${containerOnStove.baseName}`);
+                            // newLine(
+                            //     `The stove heats up the ${fluid.baseName} in the ${containerOnStove.baseName}`
+                            // );
                             fluid.temperature += 1;
                             if (fluid.temperature == 23) {
                                 newLine("The " + containerOnStove.baseName + " is filled with hot " + fluid.baseName + "!");
@@ -1153,7 +1158,7 @@ function loadMod(player, game) {
                     for (var _b = 0, _c = game.entities.filter(function (e) { return e.infusable && game.isParent(fluidContainer, e); }); _b < _c.length; _b++) {
                         var infusingTeabag = _c[_b];
                         count += 1;
-                        prefix += infusingTeabag.flavour + " ";
+                        prefix += infusingTeabag.infusable.flavour + " ";
                         game.emitSignal({ type: "teaMade" });
                         if (count < 3) {
                             hotFluid.baseName = prefix + " tea";
@@ -1177,26 +1182,23 @@ function loadMod(player, game) {
         },
     });
     game.addEntity({
-        type: "winBehaviourState",
         baseName: "winBehaviourState",
-        won: false,
         invisible: true,
-        uberWon: false,
+        winBehaviorState: { won: false, uberWon: false },
     });
     game.receivers.push({
         on_teaMade: function (data) {
-            var state = game.entities.filter(function (e) { return e.type === "winBehaviourState"; })[0];
-            if (state.won === false) {
+            var state = game.entities.filter(function (e) { return e.winBehaviorState; })[0];
+            if (state.winBehaviorState.won === false) {
                 newLine("Congratulations, you have made tea! Did you find all three teabags? I wonder what happens if you infuse them all at once...");
-                state.won = true;
+                state.winBehaviorState.won = true;
             }
         },
     });
     game.addEntity({
         baseName: "timer",
-        type: "timer",
         invisible: true,
-        time: -1,
+        timer: { time: -1 },
     });
 }
 module.exports = { loadMod: loadMod };
@@ -1294,24 +1296,14 @@ teaRoomMod.loadMod(player, game);
 // debugMod.loadMod(player, game);
 var debug = false;
 var area = game.addEntity({
-    teaRoom: true,
     baseName: "tea room",
     area: true,
-    dummy: { blorp: 5 },
 });
 game.addEntity(player, area);
 var stove = game.addEntity({
     baseName: "stove",
     active: false,
     surface: true,
-    messageCounter: {
-        messages: [
-            "The stove's flame burns a warm orange.",
-            "The stove's flame crackles",
-        ],
-        ctr: 0,
-        ctrMax: 20,
-    },
 }, area);
 var faucet = game.addEntity({
     baseName: "faucet",
@@ -1323,11 +1315,11 @@ var punchingBag = game.addEntity({
 }, area);
 var teaCupboard = game.addEntity({
     baseName: "tea cupboard",
-    solidContainer: {
-        open: false,
-    },
+    solidContainer: true,
+    closed: true,
 }, area);
 var cranberryTeabag = game.addEntity({
+    baseName: "cranberry teabag",
     item: true,
     infusable: {
         flavour: "OBVIOUS",
@@ -1360,18 +1352,21 @@ var note = game.addEntity({
 }, table, "on");
 var lockedChest = game.addEntity({
     baseName: "locked chest",
-    solidContainer: { open: false },
+    solidContainer: true,
+    closed: true,
     item: true,
-    locked: { password: "6" },
+    locked: { isLocked: true, password: "6" },
 }, table, "on");
 var smallerChest = game.addEntity({
     baseName: "smaller chest",
-    solidContainer: { open: false },
+    solidContainer: true,
+    closed: true,
     item: true,
 }, lockedChest, "in");
 var evenSmallerChest = game.addEntity({
     baseName: "even smaller chest",
-    solidContainer: { open: false },
+    solidContainer: true,
+    closed: true,
     item: true,
 }, smallerChest, "in");
 var secretTeabag = game.addEntity({

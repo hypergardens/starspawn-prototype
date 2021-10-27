@@ -18,10 +18,8 @@ teaRoomMod.loadMod(player, game);
 
 let debug = false;
 let area = game.addEntity({
-    teaRoom: true,
     baseName: "tea room",
     area: true,
-    dummy: { blorp: 5 },
 });
 game.addEntity(player, area);
 
@@ -30,14 +28,6 @@ let stove = game.addEntity(
         baseName: "stove",
         active: false,
         surface: true,
-        messageCounter: {
-            messages: [
-                "The stove's flame burns a warm orange.",
-                "The stove's flame crackles",
-            ],
-            ctr: 0,
-            ctrMax: 20,
-        },
     },
     area
 );
@@ -61,15 +51,15 @@ let punchingBag = game.addEntity(
 let teaCupboard = game.addEntity(
     {
         baseName: "tea cupboard",
-        solidContainer: {
-            open: false,
-        },
+        solidContainer: true,
+        closed: true,
     },
     area
 );
 
 let cranberryTeabag = game.addEntity(
     {
+        baseName: "cranberry teabag",
         item: true,
         infusable: {
             flavour: "OBVIOUS",
@@ -130,9 +120,10 @@ let note = game.addEntity(
 let lockedChest = game.addEntity(
     {
         baseName: "locked chest",
-        solidContainer: { open: false },
+        solidContainer: true,
+        closed: true,
         item: true,
-        locked: { password: `6` },
+        locked: { isLocked: true, password: `6` },
     },
     table,
     "on"
@@ -141,7 +132,8 @@ let lockedChest = game.addEntity(
 let smallerChest = game.addEntity(
     {
         baseName: "smaller chest",
-        solidContainer: { open: false },
+        solidContainer: true,
+        closed: true,
         item: true,
     },
     lockedChest,
@@ -151,7 +143,8 @@ let smallerChest = game.addEntity(
 let evenSmallerChest = game.addEntity(
     {
         baseName: "even smaller chest",
-        solidContainer: { open: false },
+        solidContainer: true,
+        closed: true,
         item: true,
     },
     smallerChest,

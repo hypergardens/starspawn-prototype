@@ -2,16 +2,13 @@
 // let timing = require("./timing");
 import * as utils from "./utils";
 import * as timing from "./timing";
+import { Entity, Signal } from "./interfaces";
 
-interface Entity {
-    id: number;
-    parent: number;
-    rel?: string;
-}
+import { Player } from "./PlayerModule";
 
 export class Game {
     id: number;
-    entities: any[];
+    entities: Entity[];
     words: any;
     intentsReady: boolean;
     signalsReady: boolean;
@@ -37,7 +34,11 @@ export class Game {
         this.actions = {};
     }
 
-    addEntity(entity: any, parentEntity = null, rel: string = null): any {
+    addEntity(
+        entity: Entity,
+        parentEntity: Entity = null,
+        rel: string = null
+    ): Entity {
         this.entities.push(entity);
         entity.id = this.id;
         this.id += 1;
@@ -47,7 +48,7 @@ export class Game {
         return entity;
     }
 
-    getById(id: number) {
+    getById(id: number): Entity {
         let found = undefined;
         for (let i = 0; i < this.entities.length; i++) {
             if (this.entities[i].id === id) {
@@ -89,7 +90,7 @@ export class Game {
         this.setParent(this.getById(parentId), this.getById(childId), rel);
     }
 
-    unsetParent(childEntity) {
+    unsetParent(childEntity: Entity) {
         childEntity.parent = undefined;
     }
 
@@ -126,7 +127,9 @@ export class Game {
         if (entity === undefined || this.getParent(entity) === undefined)
             return true;
         let parent = this.getParent(entity);
-        let accessible = !parent.closed && !parent.locked;
+        let accessible =
+            (parent.closed === false || parent.closed === undefined) &&
+            (parent.locked === undefined || parent.locked.isLocked === false);
         return accessible && this.isAccessible(parent);
     }
 
@@ -138,7 +141,7 @@ export class Game {
         }
     }
 
-    emitSignal(data) {
+    emitSignal(data: Signal) {
         for (let receiver of this.receivers) {
             if (receiver[`on_${data.type}`]) {
                 receiver[`on_${data.type}`](data);

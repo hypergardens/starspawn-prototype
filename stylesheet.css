@@ -10,15 +10,13 @@
 }
 
 :root {
-    --greengray: #3A443B;
-    --offwhite: #EEF0EB;
-    --offblack: #111317;
-    --offred: #FF3E3E;
-    --offdarkred: #9A031E;
-    --offgreen: #2FE880;
-    --offdarkgreen: #31874D;
-    --fulvous: #DC851F;
-    --yelloworange: #FFA737;
+    --colorgray: #3e2731;
+    --offwhite: #ffffff;
+    --offblack: #181425;
+    --offred: #e43b44;
+    --offdarkred: #a22633;
+    --offgreen: #63c74d;
+    --offdarkgreen: #3e8948;
 }
 
 body {
@@ -50,7 +48,7 @@ body {
 }
 
 #command {
-    background-color: var(--greengray);
+    background-color: var(--colorgray);
     color: var(--offwhite);
     font-size: x-large;
 }
@@ -78,7 +76,7 @@ body {
     border-radius: 3px;
     cursor: pointer;
     color: var(--offwhite);
-    background-color: var(--greengray);
+    background-color: var(--colorgray);
 }
 
 .choice:hover {

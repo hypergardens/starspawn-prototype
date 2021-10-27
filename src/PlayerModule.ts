@@ -1,7 +1,6 @@
 export class Player {
     baseName: string;
     player: boolean;
-    intent: any;
     sequence: any[];
     picking: boolean;
     command: any[];
@@ -12,7 +11,6 @@ export class Player {
     constructor() {
         this.baseName = "player";
         this.player = true;
-        this.intent = null; // intent
         this.sequence = [];
         this.picking = false;
         this.command = [];
