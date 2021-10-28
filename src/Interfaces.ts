@@ -72,6 +72,23 @@ export interface Signal {
     amount?: number;
 }
 
+export interface Action {
+    func?: string;
+    args?: any[];
+    duration?: number;
+    pause?: number;
+    signals?: Signal[];
+    tags?: any;
+    processText?: string;
+    // computed
+    id?: number;
+    maxDuration?: number;
+}
+
+export interface LogItem {
+    id?: number;
+    text?: string;
+}
 // export interface FluidSource extends Entity {
 //     fluidSource: string;
 // }

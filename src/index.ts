@@ -1,10 +1,8 @@
-import utils = require("./utils");
 import GameModule = require("./GameModule");
 import PlayerModule = require("./PlayerModule");
 // HACK
 // let newLine = utils.newLine;
 // import { newLine } from "./utils";
-utils.newLine("Test");
 let game = new GameModule.Game();
 let player = new PlayerModule.Player();
 game.player = player;
@@ -13,8 +11,8 @@ game.player = player;
 let teaRoomMod = require("./modTeaRoom");
 teaRoomMod.loadMod(player, game);
 
-let debugMod = require("./modDebug");
-debugMod.loadMod(player, game);
+// let debugMod = require("./modDebug");
+// debugMod.loadMod(player, game);
 
 let debug = false;
 let area = game.addEntity({

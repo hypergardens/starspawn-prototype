@@ -1,14 +1,16 @@
 // let utils = require("./utils")
 // let timing = require("./timing");
-import * as utils from "./utils";
 import * as timing from "./timing";
-import { Entity, Signal } from "./Interfaces";
+import { Entity, Action, Signal } from "./Interfaces";
 
 import { Player } from "./PlayerModule";
 import { LogItem } from "./LogItem";
 
 export class Game {
     id: number;
+    actionId: number;
+    history: Action[];
+    log: any[];
     entities: Entity[];
     words: any;
     intentsReady: boolean;
@@ -25,6 +27,11 @@ export class Game {
         this.id = 0;
         this.entities = [];
         this.words = {};
+
+        this.actionId = 0;
+        this.history = [];
+        this.log = [];
+
         this.intentsReady = true;
         this.signalsReady = true;
         this.queue = []; // [Action*]
@@ -150,6 +157,71 @@ export class Game {
         }
     }
 
+    processAction(action: Action) {
+        if (action.maxDuration === undefined) {
+            action.maxDuration = action.duration || 0;
+            this.actionId += 1;
+            action.id = this.actionId;
+
+            let logItem = {
+                id: action.id,
+            };
+
+            this.history.push(action);
+            this.log.push(logItem);
+        }
+
+        return action;
+    }
+
+    updateLog() {
+        for (let i = 0; i < this.log.length; i++) {
+            let logItem = this.log[i];
+            let logId = logItem.id;
+            for (let hc = 0; hc < this.history.length; hc++) {
+                let action = this.history[hc];
+                let actionId = action.id;
+                // match log item to action
+                if (logId === actionId) {
+                    if (action.duration && action.duration > 0) {
+                        logItem.progressBar = `[${"=".repeat(
+                            action.duration
+                        )}]`;
+                        logItem.sticky = true;
+                    } else {
+                        logItem.progressBar = "";
+                        logItem.sticky = false;
+                    }
+                }
+            }
+        }
+        this.log.sort((a, b) => (a.sticky && !b.sticky ? 1 : 0));
+
+        // update UI
+        let display = document.getElementById("display");
+        display.innerText = "";
+        let i = Math.max(0, this.log.length - 50);
+        for (let logItem of this.log.slice(i)) {
+            if (logItem.text) {
+                display.innerText += "\n" + logItem.text;
+            }
+            if (logItem.progressBar) {
+                display.innerText += "\n" + logItem.progressBar;
+            }
+        }
+        display.scrollTop = display.scrollHeight;
+        console.log(this.log);
+    }
+
+    newLine(text) {
+        this.actionId += 1;
+        let logItem = {
+            text: `${text}`,
+            id: this.actionId,
+        };
+        this.log.push(logItem);
+    }
+
     getIntents() {
         // get this tick's Actions {aedpcs} for every entity with intent (null or Intent)
         this.queue = [];
@@ -181,7 +253,7 @@ export class Game {
                             }
                         }
                         this.getIntents();
-                    }, 1);
+                    }, 100);
                 }
             } else if (intent && intent.sequence.length > 0) {
                 // extract actions and enqueue them
@@ -189,9 +261,10 @@ export class Game {
 
                 // extract actions until we go over 1 tick
                 while (ticks === 0 && intent.sequence.length > 0) {
+                    // process and enqueue action
+                    intent.sequence[0] = this.processAction(intent.sequence[0]);
                     let action = intent.sequence[0];
                     this.enqueue(action);
-                    // console.log(`queued up`, action);
 
                     // queue up actions including the first with duration
                     if (action.duration <= 0 || action.duration === undefined) {
@@ -204,13 +277,10 @@ export class Game {
                         if (action.duration <= 1) {
                             intent.sequence.splice(0, 1);
                         }
-                        // console.log(`action with ${ticks} duration`, action);
-                        // TODO: make multiple intent declarations possible per tick?
                         action.duration -= 1;
-                        intent.elapsed += 1;
-                        utils.newLine(
-                            `${intent.elapsed}/${intent.totalDuration}`
-                        );
+                        // this.newLine(
+                        //     `${action.duration}/${action.maxDuration}`
+                        // );
                     } else {
                         // throw `Not sure what this means`;
                     }
@@ -304,6 +374,7 @@ export class Game {
     updateUI() {
         this.updateEntityTreeUI();
         this.updateClockUI();
+        this.updateLog();
     }
 
     updateEntityTreeUI() {

@@ -12,13 +12,15 @@
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 // let utils = require("./utils")
 // let timing = require("./timing");
-var utils = __webpack_require__(/*! ./utils */ "./src/utils.ts");
 var timing = __webpack_require__(/*! ./timing */ "./src/timing.ts");
 var Game = /** @class */ (function () {
     function Game() {
         this.id = 0;
         this.entities = [];
         this.words = {};
+        this.actionId = 0;
+        this.history = [];
+        this.log = [];
         this.intentsReady = true;
         this.signalsReady = true;
         this.queue = []; // [Action*]
@@ -128,6 +130,64 @@ var Game = /** @class */ (function () {
             }
         }
     };
+    Game.prototype.processAction = function (action) {
+        if (action.maxDuration === undefined) {
+            action.maxDuration = action.duration || 0;
+            this.actionId += 1;
+            action.id = this.actionId;
+            var logItem = {
+                id: action.id,
+            };
+            this.history.push(action);
+            this.log.push(logItem);
+        }
+        return action;
+    };
+    Game.prototype.updateLog = function () {
+        for (var i_1 = 0; i_1 < this.log.length; i_1++) {
+            var logItem = this.log[i_1];
+            var logId = logItem.id;
+            for (var hc = 0; hc < this.history.length; hc++) {
+                var action = this.history[hc];
+                var actionId = action.id;
+                // match log item to action
+                if (logId === actionId) {
+                    if (action.duration && action.duration > 0) {
+                        logItem.progressBar = "[" + "=".repeat(action.duration) + "]";
+                        logItem.sticky = true;
+                    }
+                    else {
+                        logItem.progressBar = "";
+                        logItem.sticky = false;
+                    }
+                }
+            }
+        }
+        this.log.sort(function (a, b) { return (a.sticky && !b.sticky ? 1 : 0); });
+        // update UI
+        var display = document.getElementById("display");
+        display.innerText = "";
+        var i = Math.max(0, this.log.length - 50);
+        for (var _i = 0, _a = this.log.slice(i); _i < _a.length; _i++) {
+            var logItem = _a[_i];
+            if (logItem.text) {
+                display.innerText += "\n" + logItem.text;
+            }
+            if (logItem.progressBar) {
+                display.innerText += "\n" + logItem.progressBar;
+            }
+        }
+        display.scrollTop = display.scrollHeight;
+        console.log(this.log);
+    };
+    Game.prototype.newLine = function (text) {
+        this.actionId += 1;
+        var logItem = {
+            text: "" + text,
+            id: this.actionId,
+        };
+        this.log.push(logItem);
+    };
     Game.prototype.getIntents = function () {
         var _this = this;
         // get this tick's Actions {aedpcs} for every entity with intent (null or Intent)
@@ -155,7 +215,7 @@ var Game = /** @class */ (function () {
                             }
                         }
                         _this.getIntents();
-                    }, 1);
+                    }, 100);
                 }
             }
             else if (intent && intent.sequence.length > 0) {
@@ -163,9 +223,10 @@ var Game = /** @class */ (function () {
                 var ticks = 0;
                 // extract actions until we go over 1 tick
                 while (ticks === 0 && intent.sequence.length > 0) {
+                    // process and enqueue action
+                    intent.sequence[0] = this_1.processAction(intent.sequence[0]);
                     var action = intent.sequence[0];
                     this_1.enqueue(action);
-                    // console.log(`queued up`, action);
                     // queue up actions including the first with duration
                     if (action.duration <= 0 || action.duration === undefined) {
                         // instant action, keep queueing
@@ -178,11 +239,10 @@ var Game = /** @class */ (function () {
                         if (action.duration <= 1) {
                             intent.sequence.splice(0, 1);
                         }
-                        // console.log(`action with ${ticks} duration`, action);
-                        // TODO: make multiple intent declarations possible per tick?
                         action.duration -= 1;
-                        intent.elapsed += 1;
-                        utils.newLine(intent.elapsed + "/" + intent.totalDuration);
+                        // this.newLine(
+                        //     `${action.duration}/${action.maxDuration}`
+                        // );
                     }
                     else {
                         // throw `Not sure what this means`;
@@ -284,6 +344,7 @@ var Game = /** @class */ (function () {
     Game.prototype.updateUI = function () {
         this.updateEntityTreeUI();
         this.updateClockUI();
+        this.updateLog();
     };
     Game.prototype.updateEntityTreeUI = function () {
         var _this = this;
@@ -523,9 +584,12 @@ var Player = /** @class */ (function () {
             if (valid) {
                 // set intent, not picking
                 this.actor.intent = intent;
-                intent.totalDuration = intent.sequence.reduce(function (sum, action) { return sum + action.duration || 0; }, 0);
-                intent.elapsed = 0;
-                console.log({ intent: intent });
+                // intent.totalDuration = intent.sequence.reduce(
+                //     (sum, action) => sum + action.duration || 0,
+                //     0
+                // );
+                // intent.elapsed = 0;
+                // console.log({ intent });
                 this.picking = false;
                 this.focus = null;
                 // clear command
@@ -590,229 +654,35 @@ exports.Player = Player;
 
 /***/ }),
 
-/***/ "./src/modDebug.ts":
-/*!*************************!*\
-  !*** ./src/modDebug.ts ***!
-  \*************************/
-/***/ ((module, exports, __webpack_require__) => {
-
-
-Object.defineProperty(exports, "__esModule", ({ value: true }));
-var utils = __webpack_require__(/*! ./utils */ "./src/utils.ts");
-var timing = __webpack_require__(/*! ./timing */ "./src/timing.ts");
-var newLine = utils.newLine;
-function loadMod(player, game) {
-    game.actions.newLine = utils.newLine;
-    game.actions.wait = function (ticks) {
-        // game.actions.newLine(`Still waiting... of ${ticks}`);
-    };
-    function createNewLineAction(text) {
-        return {
-            func: "newLine",
-            args: [text],
-        };
-    }
-    function createWaitAction(ticks) {
-        return {
-            func: "wait",
-            args: [ticks],
-            duration: ticks,
-            // 1 -> 1, 10 -> 2
-            pause: timing.mpt / Math.pow(ticks, 1),
-        };
-    }
-    // wait various durations
-    player.patterns.push({
-        intents: function () {
-            var intents = [];
-            var durations = [
-                { baseName: "1 tick", dur: 1 },
-                { baseName: "3 ticks", dur: 3 },
-                { baseName: "6 ticks", dur: 6 },
-                // { baseName: "12 ticks", dur: 12 },
-                { baseName: "1 minute", dur: timing.m(1) },
-                { baseName: "1 hour", dur: timing.h(1) },
-                { baseName: "1 day", dur: timing.h(24) },
-            ];
-            for (var _i = 0, durations_1 = durations; _i < durations_1.length; _i++) {
-                var duration = durations_1[_i];
-                var intent = {
-                    representation: [
-                        game.word("wait"),
-                        game.word(duration.baseName),
-                    ],
-                    sequence: [
-                        createNewLineAction("You wait " + duration.dur + " ticks."),
-                        createWaitAction(duration.dur),
-                    ],
-                };
-                intents.push(intent);
-            }
-            return intents;
-        },
-    });
-    // random clapping
-    player.addPattern({
-        intents: function () {
-            var intents = [];
-            // the effect function
-            function effect() {
-                newLine("CLAP!");
-            }
-            // the sequence
-            intents.push({
-                representation: [game.word("DEBUG"), game.word("slow clap.")],
-                sequence: [
-                    createWaitAction(4),
-                    createNewLineAction("CLAP!"),
-                    createWaitAction(2),
-                    createNewLineAction("CLAP!"),
-                    createNewLineAction("CLAP!"),
-                    createWaitAction(2),
-                    createNewLineAction("CLAP!"),
-                    createNewLineAction("CLAP!"),
-                    createNewLineAction("CLAP!"),
-                ],
-            });
-            return intents;
-        },
-    });
-    function createPingAction() {
-        return {
-            func: "newLine",
-            args: ["ping"],
-            pause: 100,
-            signals: [{ type: "ping" }],
-            duration: 0,
-        };
-    }
-    // 3x ping, to be responded to with pong and peng
-    player.addPattern({
-        intents: function () {
-            var intents = [];
-            intents.push({
-                representation: [game.word("DEBUG"), game.word("3 x ping.")],
-                sequence: [
-                    createPingAction(),
-                    createPingAction(),
-                    createPingAction(),
-                ],
-            });
-            return intents;
-        },
-    });
-    game.receivers.push({
-        on_ping: function (data) {
-            game.enqueue({
-                func: "newLine",
-                args: ["Pong!"],
-                signals: [{ type: "pong" }],
-                pause: 300,
-            });
-        },
-    });
-    game.receivers.push({
-        on_pong: function (data) {
-            game.enqueue({
-                func: "newLine",
-                args: ["Peng!"],
-                signals: [{ type: "peng" }],
-                pause: 300,
-            });
-        },
-    });
-    // plain longer action
-    player.addPattern({
-        intents: function () {
-            var intents = [];
-            // the sequence
-            intents.push({
-                representation: [
-                    game.word("DEBUG"),
-                    game.word("POW"),
-                    game.word("POW"),
-                    game.word("POW"),
-                ],
-                sequence: [createNewLineAction("POW POW POW!")],
-            });
-            return intents;
-        },
-    });
-    // plain shorter action
-    player.addPattern({
-        intents: function () {
-            var intents = [];
-            // the sequence
-            intents.push({
-                representation: [game.word("DEBUG"), game.word("POW")],
-                sequence: [createNewLineAction("POW!")],
-            });
-            return intents;
-        },
-    });
-    // duration 2 action that releases pings
-    player.addPattern({
-        intents: function () {
-            var intents = [];
-            // the sequence
-            intents.push({
-                representation: [game.word("DEBUG"), game.word("long-ping")],
-                sequence: [
-                    {
-                        func: "newLine",
-                        args: ["piiiiiiiiing!"],
-                        pause: 300,
-                        signals: [{ type: "ping" }],
-                        duration: 2,
-                    },
-                ],
-            });
-            return intents;
-        },
-    });
-    // 3 ticks
-    player.addPattern({
-        intents: function () {
-            var intents = [];
-            // the sequence
-            intents.push({
-                representation: [game.word("DEBUG"), game.word("wait 3 ticks")],
-                sequence: [createWaitAction(3)],
-            });
-            return intents;
-        },
-    });
-    // tick timers up
-    game.receivers.push({
-        on_tick: function (data) {
-            for (var _i = 0, _a = game.entities.filter(function (e) { return e.type === "timer"; }); _i < _a.length; _i++) {
-                var timer = _a[_i];
-                timer.time += 1;
-            }
-        },
-    });
-}
-module.exports = { loadMod: loadMod };
-
-
-/***/ }),
-
 /***/ "./src/modTeaRoom.ts":
 /*!***************************!*\
   !*** ./src/modTeaRoom.ts ***!
   \***************************/
-/***/ ((module, exports, __webpack_require__) => {
+/***/ (function(module, exports, __webpack_require__) {
 
 
+var __spreadArrays = (this && this.__spreadArrays) || function () {
+    for (var s = 0, i = 0, il = arguments.length; i < il; i++) s += arguments[i].length;
+    for (var r = Array(s), k = 0, i = 0; i < il; i++)
+        for (var a = arguments[i], j = 0, jl = a.length; j < jl; j++, k++)
+            r[k] = a[j];
+    return r;
+};
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-var utils = __webpack_require__(/*! ./utils */ "./src/utils.ts");
 var timing = __webpack_require__(/*! ./timing */ "./src/timing.ts");
-var newLine = utils.newLine;
 function loadMod(player, game) {
-    game.actions.newLine = utils.newLine;
+    game.actions.newLine = function () {
+        var _a;
+        var args = [];
+        for (var _i = 0; _i < arguments.length; _i++) {
+            args[_i] = arguments[_i];
+        }
+        return (_a = game.newLine).call.apply(_a, __spreadArrays([game], args));
+    };
+    // let newLine = game.newLine;
     game.actions.wait = function (ticks) {
         if (ticks === void 0) { ticks = 0; }
-        // game.actions.newLine(`Still waiting... of ${ticks}`);
+        // game.newLine(`Still waiting... of ${ticks}`);
     };
     function createNewLineAction(text) {
         return {
@@ -820,12 +690,14 @@ function loadMod(player, game) {
             args: [text],
         };
     }
-    function createWaitAction(ticks) {
+    function createWaitAction(ticks, processText) {
+        if (processText === void 0) { processText = "Waiting..."; }
         return {
             func: "wait",
             args: [ticks],
             duration: ticks,
             pause: timing.mpt / Math.pow(ticks, 1),
+            processText: processText,
         };
     }
     // wait various durations
@@ -836,6 +708,8 @@ function loadMod(player, game) {
                 { baseName: "1 tick", dur: 1 },
                 { baseName: "3 ticks", dur: 3 },
                 { baseName: "6 ticks", dur: 6 },
+                { baseName: "12 ticks", dur: 12 },
+                { baseName: "60 ticks", dur: 60 },
             ];
             for (var _i = 0, durations_1 = durations; _i < durations_1.length; _i++) {
                 var duration = durations_1[_i];
@@ -862,7 +736,7 @@ function loadMod(player, game) {
             fluid: true,
             temperature: 20,
         }, fluidContainer);
-        newLine("You fill up the " + fluidContainer.baseName + " from the " + fluidSource.baseName + " with " + fluid.baseName);
+        game.newLine("You fill up the " + fluidContainer.baseName + " from the " + fluidSource.baseName + " with " + fluid.baseName);
     };
     function fluidsIn(fluidContainer) {
         var fluidChildren = game
@@ -886,7 +760,7 @@ function loadMod(player, game) {
                             fluidSource,
                         ],
                         sequence: [
-                            createWaitAction(3),
+                            createWaitAction(3, "Filling"),
                             {
                                 func: "fillFrom",
                                 args: [
@@ -895,7 +769,7 @@ function loadMod(player, game) {
                                 ],
                                 duration: 1,
                             },
-                            createWaitAction(3),
+                            createWaitAction(3, "Recovering"),
                         ],
                     });
                     // throw "HALT"
@@ -907,7 +781,7 @@ function loadMod(player, game) {
     game.actions.emptyContainer = function (containerId) {
         var container = game.getById(containerId);
         var containerParent = game.getParent(container);
-        newLine("You empty the " + container.baseName + " on the " + containerParent.baseName + ".");
+        game.newLine("You empty the " + container.baseName + " on the " + containerParent.baseName + ".");
         for (var _i = 0, _a = game.getChildrenById(containerId); _i < _a.length; _i++) {
             var child = _a[_i];
             if (child.fluid) {
@@ -948,7 +822,7 @@ function loadMod(player, game) {
         var destination = game.getById(destinationId);
         for (var _i = 0, _a = game.getChildren(source); _i < _a.length; _i++) {
             var child = _a[_i];
-            newLine("You pour the " + child.baseName + " from the " + source.baseName + " into the " + destination.baseName + ".");
+            game.newLine("You pour the " + child.baseName + " from the " + source.baseName + " into the " + destination.baseName + ".");
             game.setParent(destination, child);
         }
     };
@@ -1089,10 +963,10 @@ function loadMod(player, game) {
         var chest = game.getById(chestId);
         if (trialPassword === chest.locked.password) {
             chest.locked.isLocked = false;
-            newLine("The locks click open.");
+            game.newLine("The locks click open.");
         }
         else {
-            newLine("Incorrect password.");
+            game.newLine("Incorrect password.");
         }
     };
     player.addPattern({
@@ -1145,12 +1019,12 @@ function loadMod(player, game) {
     game.actions.tryOpen = function (entityId) {
         var entity = game.getById(entityId);
         if (entity.locked && entity.locked.isLocked) {
-            newLine("The " + entity.baseName + " seems to be locked...");
+            game.newLine("The " + entity.baseName + " seems to be locked...");
         }
         else if (entity.closed === true) {
             entity.closed = false;
-            newLine("You open the " + entity.baseName);
-            newLine("It contains: " + game
+            game.newLine("You open the " + entity.baseName);
+            game.newLine("It contains: " + game
                 .getChildren(entity)
                 .map(function (e) { return e.baseName; })
                 .join(","));
@@ -1178,9 +1052,9 @@ function loadMod(player, game) {
         var attacker = game.getById(attackerId);
         var target = game.getById(targetId);
         var sounds = ["POW!", "Bam!", "Boom!", "Zock!"];
-        newLine("You punch the " + target.baseName + "! " + sounds[Math.floor(Math.random() * sounds.length)]);
+        game.newLine("You punch the " + target.baseName + "! " + sounds[Math.floor(Math.random() * sounds.length)]);
         if (target.health < 5) {
-            newLine("Some fluff flies out of the ruptures. 1 damage!");
+            game.newLine("Some fluff flies out of the ruptures. 1 damage!");
             target.health -= 1;
             game.emitSignal({ type: "damageDealt", by: attacker, to: target });
         }
@@ -1224,13 +1098,13 @@ function loadMod(player, game) {
         for (var _i = 0, _a = game.getChildren(container).filter(function (e) { return e.fluid; }); _i < _a.length; _i++) {
             var fluid = _a[_i];
             if (fluid.turboTea) {
-                newLine("You feel like a 400 IQ, cupboard-opening, killing machine! In fact, you feel so good you feel like giving Gardens some feedback on their game!");
+                game.newLine("You feel like a 400 IQ, cupboard-opening, killing machine! In fact, you feel so good you feel like giving Gardens some feedback on their game!");
             }
             else if (fluid.tea) {
-                newLine("It's not too bad. It's... fine.");
+                game.newLine("It's not too bad. It's... fine.");
             }
             else {
-                newLine("It's important to stay hydrated, I guess.");
+                game.newLine("It's important to stay hydrated, I guess.");
             }
         }
     };
@@ -1262,14 +1136,14 @@ function loadMod(player, game) {
     game.actions.readyClaws = function (targetId) {
         var target = game.getById(targetId);
         if (target.health === 5)
-            newLine("You let out a piercing shriek as you ready your razor-sharp, glassy claws!");
+            game.newLine("You let out a piercing shriek as you ready your razor-sharp, glassy claws!");
         else
-            newLine("You ready your claws again!");
+            game.newLine("You ready your claws again!");
     };
     game.actions.claw = function (attackerId, targetId) {
         var attacker = game.getById(attackerId);
         var target = game.getById(targetId);
-        newLine("You tear out the " + target.baseName + "'s insides for 2 damage!");
+        game.newLine("You tear out the " + target.baseName + "'s insides for 2 damage!");
         target.health -= 2;
         game.emitSignal({
             type: "damageDealt",
@@ -1301,10 +1175,10 @@ function loadMod(player, game) {
     });
     game.receivers.push({
         on_damageDealt: function (data) {
-            newLine("Damage dealt by " + data.by.baseName);
+            game.newLine("Damage dealt by " + data.by.baseName);
             if (data.to.health <= 0 && !data.to.dead) {
                 data.to.dead = true;
-                newLine("You have defeated your first enemy, a vile " + data.to.baseName + ". It drops a teabag!");
+                game.newLine("You have defeated your first enemy, a vile " + data.to.baseName + ". It drops a teabag!");
                 data.to.baseName = "dead " + data.to.baseName;
                 data.health = undefined;
                 game.addEntity({
@@ -1325,10 +1199,10 @@ function loadMod(player, game) {
                     // put out a message regularly
                     if (stove.ctr >= 2) {
                         stove.ctr = 0;
-                        newLine("The stove's flame burns a warm orange.");
+                        game.newLine("The stove's flame burns a warm orange.");
                     }
                     var _loop_2 = function (containerOnStove) {
-                        // newLine(
+                        // game.newLine(
                         //     `The stove heats up the ${containerOnStove.baseName}`
                         // );
                         for (var _i = 0, _a = game.entities.filter(function (fluid) {
@@ -1336,12 +1210,12 @@ function loadMod(player, game) {
                                 game.isParent(containerOnStove, fluid);
                         }); _i < _a.length; _i++) {
                             var fluid = _a[_i];
-                            // newLine(
+                            // game.newLine(
                             //     `The stove heats up the ${fluid.baseName} in the ${containerOnStove.baseName}`
                             // );
                             fluid.temperature += 1;
                             if (fluid.temperature == 23) {
-                                newLine("The " + containerOnStove.baseName + " is filled with hot " + fluid.baseName + "!");
+                                game.newLine("The " + containerOnStove.baseName + " is filled with hot " + fluid.baseName + "!");
                             }
                         }
                     };
@@ -1386,7 +1260,7 @@ function loadMod(player, game) {
                             hotFluid.baseName = "TURBO TESTER TEA";
                             if (!hotFluid.turboTea) {
                                 hotFluid.turboTea = true;
-                                newLine("TOTAL VICTORY ACHIEVED! Enjoy your tea!");
+                                game.newLine("TOTAL VICTORY ACHIEVED! Enjoy your tea!");
                             }
                         }
                         // console.log("hotFluid", hotFluid);
@@ -1408,7 +1282,7 @@ function loadMod(player, game) {
         on_teaMade: function (data) {
             var state = game.entities.filter(function (e) { return e.winBehaviorState; })[0];
             if (state.winBehaviorState.won === false) {
-                newLine("Congratulations, you have made tea! Did you find all three teabags? I wonder what happens if you infuse them all at once...");
+                game.newLine("Congratulations, you have made tea! Did you find all three teabags? I wonder what happens if you infuse them all at once...");
                 state.winBehaviorState.won = true;
             }
         },
@@ -1433,9 +1307,9 @@ module.exports = { loadMod: loadMod };
 
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 // ticks per second
-exports.tps = 1;
+exports.tps = 6;
 // milliseconds per tick
-exports.mpt = 10;
+exports.mpt = 300;
 function s(nr) {
     return exports.tps * nr;
 }
@@ -1448,27 +1322,6 @@ function h(nr) {
     return exports.tps * nr * 3600;
 }
 exports.h = h;
-
-
-/***/ }),
-
-/***/ "./src/utils.ts":
-/*!**********************!*\
-  !*** ./src/utils.ts ***!
-  \**********************/
-/***/ ((__unused_webpack_module, exports) => {
-
-
-Object.defineProperty(exports, "__esModule", ({ value: true }));
-function newLine(text) {
-    // var node = document.createElement("li"); // Create a <li> node
-    // var textnode = document.createTextNode(text); // Create a text node
-    // node.appendChild(textnode); // Append the text to <li>
-    var display = document.getElementById("display");
-    display.innerText += "\n" + text;
-    display.scrollTop = display.scrollHeight;
-}
-exports.newLine = newLine;
 
 
 /***/ })
@@ -1493,7 +1346,7 @@ exports.newLine = newLine;
 /******/ 		};
 /******/ 	
 /******/ 		// Execute the module function
-/******/ 		__webpack_modules__[moduleId](module, module.exports, __webpack_require__);
+/******/ 		__webpack_modules__[moduleId].call(module.exports, module, module.exports, __webpack_require__);
 /******/ 	
 /******/ 		// Return the exports of the module
 /******/ 		return module.exports;
@@ -1509,21 +1362,19 @@ var exports = __webpack_exports__;
   \**********************/
 
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-var utils = __webpack_require__(/*! ./utils */ "./src/utils.ts");
 var GameModule = __webpack_require__(/*! ./GameModule */ "./src/GameModule.ts");
 var PlayerModule = __webpack_require__(/*! ./PlayerModule */ "./src/PlayerModule.ts");
 // HACK
 // let newLine = utils.newLine;
 // import { newLine } from "./utils";
-utils.newLine("Test");
 var game = new GameModule.Game();
 var player = new PlayerModule.Player();
 game.player = player;
 // load mods
 var teaRoomMod = __webpack_require__(/*! ./modTeaRoom */ "./src/modTeaRoom.ts");
 teaRoomMod.loadMod(player, game);
-var debugMod = __webpack_require__(/*! ./modDebug */ "./src/modDebug.ts");
-debugMod.loadMod(player, game);
+// let debugMod = require("./modDebug");
+// debugMod.loadMod(player, game);
 var debug = false;
 var area = game.addEntity({
     baseName: "tea room",

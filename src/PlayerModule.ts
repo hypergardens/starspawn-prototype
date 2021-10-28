@@ -131,12 +131,12 @@ export class Player {
             if (valid) {
                 // set intent, not picking
                 this.actor.intent = intent;
-                intent.totalDuration = intent.sequence.reduce(
-                    (sum, action) => sum + action.duration || 0,
-                    0
-                );
-                intent.elapsed = 0;
-                console.log({ intent });
+                // intent.totalDuration = intent.sequence.reduce(
+                //     (sum, action) => sum + action.duration || 0,
+                //     0
+                // );
+                // intent.elapsed = 0;
+                // console.log({ intent });
                 this.picking = false;
                 this.focus = null;
                 // clear command

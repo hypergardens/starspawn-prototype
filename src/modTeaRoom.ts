@@ -1,30 +1,33 @@
-import * as utils from "./utils";
 import * as timing from "./timing";
 import * as GameModule from "./GameModule";
 
-import { Entity } from "./Interfaces";
+import { Entity, Action } from "./Interfaces";
 
-let newLine = utils.newLine;
 function loadMod(player, game: GameModule.Game) {
-    game.actions.newLine = utils.newLine;
+    game.actions.newLine = (...args) => game.newLine.call(game, ...args);
+    // let newLine = game.newLine;
 
     game.actions.wait = function (ticks: number = 0) {
-        // game.actions.newLine(`Still waiting... of ${ticks}`);
+        // game.newLine(`Still waiting... of ${ticks}`);
     };
 
-    function createNewLineAction(text: string) {
+    function createNewLineAction(text: string): Action {
         return {
             func: "newLine",
             args: [text],
         };
     }
 
-    function createWaitAction(ticks: number) {
+    function createWaitAction(
+        ticks: number,
+        processText: string = "Waiting..."
+    ): Action {
         return {
             func: "wait",
             args: [ticks],
             duration: ticks,
             pause: timing.mpt / Math.pow(ticks, 1),
+            processText: processText,
         };
     }
 
@@ -36,8 +39,8 @@ function loadMod(player, game: GameModule.Game) {
                 { baseName: "1 tick", dur: 1 },
                 { baseName: "3 ticks", dur: 3 },
                 { baseName: "6 ticks", dur: 6 },
-                // { baseName: "12 ticks", dur: 12 },
-                // { baseName: "60 ticks", dur: 60 },
+                { baseName: "12 ticks", dur: 12 },
+                { baseName: "60 ticks", dur: 60 },
             ];
             for (let duration of durations) {
                 let intent = {
@@ -68,7 +71,7 @@ function loadMod(player, game: GameModule.Game) {
             },
             fluidContainer
         );
-        newLine(
+        game.newLine(
             `You fill up the ${fluidContainer.baseName} from the ${fluidSource.baseName} with ${fluid.baseName}`
         );
     };
@@ -98,7 +101,7 @@ function loadMod(player, game: GameModule.Game) {
                             fluidSource,
                         ],
                         sequence: [
-                            createWaitAction(3),
+                            createWaitAction(3, "Filling"),
                             {
                                 func: "fillFrom",
                                 args: [
@@ -107,7 +110,7 @@ function loadMod(player, game: GameModule.Game) {
                                 ],
                                 duration: 1,
                             },
-                            createWaitAction(3),
+                            createWaitAction(3, "Recovering"),
                         ],
                     });
                     // throw "HALT"
@@ -120,7 +123,7 @@ function loadMod(player, game: GameModule.Game) {
     game.actions.emptyContainer = function (containerId) {
         let container = game.getById(containerId);
         let containerParent = game.getParent(container);
-        newLine(
+        game.newLine(
             `You empty the ${container.baseName} on the ${containerParent.baseName}.`
         );
         for (let child of game.getChildrenById(containerId)) {
@@ -164,7 +167,7 @@ function loadMod(player, game: GameModule.Game) {
         let destination = game.getById(destinationId);
 
         for (let child of game.getChildren(source)) {
-            newLine(
+            game.newLine(
                 `You pour the ${child.baseName} from the ${source.baseName} into the ${destination.baseName}.`
             );
             game.setParent(destination, child);
@@ -325,9 +328,9 @@ function loadMod(player, game: GameModule.Game) {
         let chest = game.getById(chestId);
         if (trialPassword === chest.locked.password) {
             chest.locked.isLocked = false;
-            newLine("The locks click open.");
+            game.newLine("The locks click open.");
         } else {
-            newLine("Incorrect password.");
+            game.newLine("Incorrect password.");
         }
     };
 
@@ -384,11 +387,11 @@ function loadMod(player, game: GameModule.Game) {
     game.actions.tryOpen = function (entityId) {
         let entity = game.getById(entityId);
         if (entity.locked && entity.locked.isLocked) {
-            newLine(`The ${entity.baseName} seems to be locked...`);
+            game.newLine(`The ${entity.baseName} seems to be locked...`);
         } else if (entity.closed === true) {
             entity.closed = false;
-            newLine(`You open the ${entity.baseName}`);
-            newLine(
+            game.newLine(`You open the ${entity.baseName}`);
+            game.newLine(
                 `It contains: ${game
                     .getChildren(entity)
                     .map((e) => e.baseName)
@@ -420,13 +423,13 @@ function loadMod(player, game: GameModule.Game) {
         let attacker = game.getById(attackerId);
         let target = game.getById(targetId);
         let sounds = ["POW!", "Bam!", "Boom!", "Zock!"];
-        newLine(
+        game.newLine(
             `You punch the ${target.baseName}! ${
                 sounds[Math.floor(Math.random() * sounds.length)]
             }`
         );
         if (target.health < 5) {
-            newLine(`Some fluff flies out of the ruptures. 1 damage!`);
+            game.newLine(`Some fluff flies out of the ruptures. 1 damage!`);
             target.health -= 1;
             game.emitSignal({ type: "damageDealt", by: attacker, to: target });
         }
@@ -470,13 +473,13 @@ function loadMod(player, game: GameModule.Game) {
         let container = game.getById(containerId);
         for (let fluid of game.getChildren(container).filter((e) => e.fluid)) {
             if (fluid.turboTea) {
-                newLine(
+                game.newLine(
                     `You feel like a 400 IQ, cupboard-opening, killing machine! In fact, you feel so good you feel like giving Gardens some feedback on their game!`
                 );
             } else if (fluid.tea) {
-                newLine(`It's not too bad. It's... fine.`);
+                game.newLine(`It's not too bad. It's... fine.`);
             } else {
-                newLine(`It's important to stay hydrated, I guess.`);
+                game.newLine(`It's important to stay hydrated, I guess.`);
             }
         }
     };
@@ -511,16 +514,18 @@ function loadMod(player, game: GameModule.Game) {
     game.actions.readyClaws = function (targetId) {
         let target = game.getById(targetId);
         if (target.health === 5)
-            newLine(
+            game.newLine(
                 `You let out a piercing shriek as you ready your razor-sharp, glassy claws!`
             );
-        else newLine(`You ready your claws again!`);
+        else game.newLine(`You ready your claws again!`);
     };
 
     game.actions.claw = function (attackerId, targetId) {
         let attacker = game.getById(attackerId);
         let target = game.getById(targetId);
-        newLine(`You tear out the ${target.baseName}'s insides for 2 damage!`);
+        game.newLine(
+            `You tear out the ${target.baseName}'s insides for 2 damage!`
+        );
         target.health -= 2;
         game.emitSignal({
             type: "damageDealt",
@@ -553,10 +558,10 @@ function loadMod(player, game: GameModule.Game) {
 
     game.receivers.push({
         on_damageDealt: function (data) {
-            newLine(`Damage dealt by ${data.by.baseName}`);
+            game.newLine(`Damage dealt by ${data.by.baseName}`);
             if (data.to.health <= 0 && !data.to.dead) {
                 data.to.dead = true;
-                newLine(
+                game.newLine(
                     `You have defeated your first enemy, a vile ${data.to.baseName}. It drops a teabag!`
                 );
                 data.to.baseName = `dead ${data.to.baseName}`;
@@ -585,7 +590,7 @@ function loadMod(player, game: GameModule.Game) {
                     // put out a message regularly
                     if (stove.ctr >= 2) {
                         stove.ctr = 0;
-                        newLine("The stove's flame burns a warm orange.");
+                        game.newLine("The stove's flame burns a warm orange.");
                     }
                     // heat up fluid inside containers on stove
                     for (let containerOnStove of game.entities.filter(
@@ -593,7 +598,7 @@ function loadMod(player, game: GameModule.Game) {
                             containerOnStove.fluidContainer &&
                             game.isParent(stove, containerOnStove)
                     )) {
-                        // newLine(
+                        // game.newLine(
                         //     `The stove heats up the ${containerOnStove.baseName}`
                         // );
                         for (let fluid of game.entities.filter(
@@ -601,12 +606,12 @@ function loadMod(player, game: GameModule.Game) {
                                 fluid.fluid &&
                                 game.isParent(containerOnStove, fluid)
                         )) {
-                            // newLine(
+                            // game.newLine(
                             //     `The stove heats up the ${fluid.baseName} in the ${containerOnStove.baseName}`
                             // );
                             fluid.temperature += 1;
                             if (fluid.temperature == 23) {
-                                newLine(
+                                game.newLine(
                                     `The ${containerOnStove.baseName} is filled with hot ${fluid.baseName}!`
                                 );
                             }
@@ -644,7 +649,7 @@ function loadMod(player, game: GameModule.Game) {
                             hotFluid.baseName = `TURBO TESTER TEA`;
                             if (!hotFluid.turboTea) {
                                 hotFluid.turboTea = true;
-                                newLine(
+                                game.newLine(
                                     "TOTAL VICTORY ACHIEVED! Enjoy your tea!"
                                 );
                             }
@@ -666,7 +671,7 @@ function loadMod(player, game: GameModule.Game) {
         on_teaMade: function (data) {
             let state = game.entities.filter((e) => e.winBehaviorState)[0];
             if (state.winBehaviorState.won === false) {
-                newLine(
+                game.newLine(
                     `Congratulations, you have made tea! Did you find all three teabags? I wonder what happens if you infuse them all at once...`
                 );
                 state.winBehaviorState.won = true;

@@ -1,7 +1,7 @@
 // ticks per second
-export let tps = 1;
+export let tps = 6;
 // milliseconds per tick
-export let mpt = 10;
+export let mpt = 300;
 
 export function s(nr) {
     return tps * nr;

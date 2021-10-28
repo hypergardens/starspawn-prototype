@@ -1,25 +1,26 @@
 Entity
-    baseName: str 
-    +- parent: ID
-    +- rel: str
+    baseName: string 
+    ? parent: ID
+    ? rel: string
 
 Signal
-    type: str
-    +- key: value
+    type: string
+    ? key: value
 
 Action
-    +- func: str
-    +- args: value[] 
-    +- duration: int
-    +- pause: int
-    +- signals: Signal[]
-    +-- condition: func()
+    ? func: string
+    ? args: value[] 
+    ? duration: number
+    ? pause: number
+    ? signals: Signal[]
+    ? processText: string
+
+    c: maxDuration: number
+    c: timeStarted: number
 
 Intent
     representation: Entity[]
     sequence: Action[]
-    c: totalDuration
-    c: elapsed
 
 Word < Entity
 

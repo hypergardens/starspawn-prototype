@@ -1,12 +1,8 @@
-import utils = require("./utils");
 import timing = require("./timing");
 
-let newLine = utils.newLine;
 function loadMod(player, game) {
-    game.actions.newLine = utils.newLine;
-
     game.actions.wait = function (ticks) {
-        // game.actions.newLine(`Still waiting... of ${ticks}`);
+        game.newLine(`Still waiting... of ${ticks}`);
     };
 
     function createNewLineAction(text) {
@@ -26,35 +22,35 @@ function loadMod(player, game) {
         };
     }
 
-    // wait various durations
-    player.patterns.push({
-        intents: () => {
-            let intents = [];
-            let durations = [
-                { baseName: "1 tick", dur: 1 },
-                { baseName: "3 ticks", dur: 3 },
-                { baseName: "6 ticks", dur: 6 },
-                // { baseName: "12 ticks", dur: 12 },
-                { baseName: "1 minute", dur: timing.m(1) },
-                { baseName: "1 hour", dur: timing.h(1) },
-                { baseName: "1 day", dur: timing.h(24) },
-            ];
-            for (let duration of durations) {
-                let intent = {
-                    representation: [
-                        game.word("wait"),
-                        game.word(duration.baseName),
-                    ],
-                    sequence: [
-                        createNewLineAction(`You wait ${duration.dur} ticks.`),
-                        createWaitAction(duration.dur),
-                    ],
-                };
-                intents.push(intent);
-            }
-            return intents;
-        },
-    });
+    // // wait various durations
+    // player.patterns.push({
+    //     intents: () => {
+    //         let intents = [];
+    //         let durations = [
+    //             { baseName: "1 tick", dur: 1 },
+    //             { baseName: "3 ticks", dur: 3 },
+    //             { baseName: "6 ticks", dur: 6 },
+    //             // { baseName: "12 ticks", dur: 12 },
+    //             { baseName: "1 minute", dur: timing.m(1) },
+    //             { baseName: "1 hour", dur: timing.h(1) },
+    //             { baseName: "1 day", dur: timing.h(24) },
+    //         ];
+    //         for (let duration of durations) {
+    //             let intent = {
+    //                 representation: [
+    //                     game.word("wait"),
+    //                     game.word(duration.baseName),
+    //                 ],
+    //                 sequence: [
+    //                     createNewLineAction(`You wait ${duration.dur} ticks.`),
+    //                     createWaitAction(duration.dur),
+    //                 ],
+    //             };
+    //             intents.push(intent);
+    //         }
+    //         return intents;
+    //     },
+    // });
 
     // random clapping
     player.addPattern({
@@ -62,7 +58,7 @@ function loadMod(player, game) {
             let intents = [];
             // the effect function
             function effect() {
-                newLine("CLAP!");
+                game.newLine("CLAP!");
             }
             // the sequence
             intents.push({
