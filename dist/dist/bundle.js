@@ -153,7 +153,8 @@ var Game = /** @class */ (function () {
                 // match log item to action
                 if (logId === actionId) {
                     if (action.duration && action.duration > 0) {
-                        logItem.progressBar = "[" + "=".repeat(action.duration) + "]";
+                        logItem.progressBar = "[" + ("=".repeat(action.maxDuration - action.duration) +
+                            "-".repeat(action.duration)) + "]";
                         logItem.sticky = true;
                     }
                     else {
