@@ -152,13 +152,15 @@ var Game = /** @class */ (function () {
                 var actionId = action.id;
                 // match log item to action
                 if (logId === actionId) {
-                    if (action.duration && action.duration > 0) {
+                    if (action.duration && action.duration >= 0) {
                         logItem.progressBar = "[" + ("=".repeat(action.maxDuration - action.duration) +
                             "-".repeat(action.duration)) + "]";
                         logItem.sticky = true;
                     }
                     else {
-                        logItem.progressBar = "";
+                        if (action.maxDuration > 0) {
+                            logItem.progressBar = "[" + "=".repeat(action.maxDuration) + "]";
+                        }
                         logItem.sticky = false;
                     }
                 }

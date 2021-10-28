@@ -16,7 +16,6 @@ Action
     ? processText: string
 
     c: maxDuration: number
-    c: timeStarted: number
 
 Intent
     representation: Entity[]
