@@ -63,12 +63,12 @@ export interface Entity {
     player?: boolean;
 }
 
-export interface Signal {
+export interface Event {
     type: string;
 
-    // DamageDealt
-    by?: Entity;
+    from?: Entity;
     to?: Entity;
+    // DamageDealt
     amount?: number;
 }
 
@@ -77,7 +77,7 @@ export interface Action {
     args?: any[];
     duration?: number;
     pause?: number;
-    signals?: Signal[];
+    signals?: Event[];
     tags?: any;
     processText?: string;
     // computed

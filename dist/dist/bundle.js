@@ -13,6 +13,7 @@ Object.defineProperty(exports, "__esModule", ({ value: true }));
 // let utils = require("./utils")
 // let timing = require("./timing");
 var timing = __webpack_require__(/*! ./timing */ "./src/timing.ts");
+var PriorityQueue_1 = __webpack_require__(/*! ./PriorityQueue */ "./src/PriorityQueue.ts");
 var Game = /** @class */ (function () {
     function Game() {
         this.id = 0;
@@ -22,9 +23,9 @@ var Game = /** @class */ (function () {
         this.history = [];
         this.log = [];
         this.intentsReady = true;
-        this.signalsReady = true;
         this.queue = []; // [Action*]
-        this.receivers = []; // {on_signalType:func()}
+        this.queueSpliceI = 0;
+        this.handlers = new PriorityQueue_1.PriorityQueue(); // {on_eventType:func()}
         this.time = 0;
         this.player = null;
         this.playRandomly = false;
@@ -59,6 +60,10 @@ var Game = /** @class */ (function () {
             depth += 1;
         }
         return depth;
+    };
+    Game.prototype.addHandler = function (value, handler) {
+        this.handlers.enqueue({ value: value, element: handler });
+        return handler;
     };
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     // PARENT
@@ -113,23 +118,29 @@ var Game = /** @class */ (function () {
             (parent.locked === undefined || parent.locked.isLocked === false);
         return accessible && this.isAccessible(parent);
     };
-    Game.prototype.enqueue = function (action, i) {
-        if (i === void 0) { i = -1; }
-        if (i === -1) {
+    Game.prototype.enqueue = function (action, splice) {
+        if (splice === void 0) { splice = true; }
+        if (!splice) {
             this.queue.push(action);
         }
         else {
-            this.queue.splice(i, 0, action);
+            this.queue.splice(this.queueSpliceI, 0, action);
+            this.queueSpliceI++;
         }
     };
-    Game.prototype.emitSignal = function (data) {
-        for (var _i = 0, _a = this.receivers; _i < _a.length; _i++) {
-            var receiver = _a[_i];
-            if (receiver["on_" + data.type]) {
-                receiver["on_" + data.type](data);
+    Game.prototype.emitEvent = function (data) {
+        for (var _i = 0, _a = this.handlers.asArray(); _i < _a.length; _i++) {
+            var handler = _a[_i];
+            if (handler["on_" + data.type]) {
+                console.log({ data: data });
+                handler["on_" + data.type](data);
             }
         }
     };
+    Game.prototype.queueEvent = function (data) {
+        this.enqueue({ events: [data] });
+    };
+    // called when action is first started
     Game.prototype.processAction = function (action) {
         if (action.maxDuration === undefined) {
             action.maxDuration = action.duration || 0;
@@ -194,7 +205,6 @@ var Game = /** @class */ (function () {
     Game.prototype.getIntents = function () {
         var _this = this;
         // get this tick's Actions {aedpcs} for every entity with intent (null or Intent)
-        this.queue = [];
         this.intentsReady = true;
         var _loop_1 = function (entity) {
             var intent = entity.actor.intent;
@@ -229,10 +239,10 @@ var Game = /** @class */ (function () {
                     // process and enqueue action
                     intent.sequence[0] = this_1.processAction(intent.sequence[0]);
                     var action = intent.sequence[0];
-                    this_1.enqueue(action);
+                    this_1.enqueue(action, false);
                     // queue up actions including the first with duration
                     if (action.duration <= 0 || action.duration === undefined) {
-                        // instant action, keep queueing
+                        // instant action, keep queueSpliceIng
                         intent.sequence.splice(0, 1);
                     }
                     else if (action.duration > 0) {
@@ -243,14 +253,12 @@ var Game = /** @class */ (function () {
                             intent.sequence.splice(0, 1);
                         }
                         action.duration -= 1;
-                        // this.newLine(
-                        //     `${action.duration}/${action.maxDuration}`
-                        // );
                     }
                     else {
                         // throw `Not sure what this means`;
                     }
                 }
+                // if the last action was extracted, render null
                 if (intent.sequence.length === 0) {
                     entity.actor.intent = null;
                 }
@@ -261,51 +269,21 @@ var Game = /** @class */ (function () {
             var entity = _a[_i];
             _loop_1(entity);
         }
-        // when ready, propagate signals
+        // when ready, propagate events
         if (this.intentsReady) {
-            // queue up a tick signal
-            this.queue.push({ signals: [{ type: "tick" }] });
+            // queue up a tick event
+            this.queue.push({ events: [{ type: "tick" }] });
             // newLine(`starting tick ${game.time}`);
-            this.propagateSignals();
+            this.processNext();
         }
     };
-    Game.prototype.propagateSignals = function () {
-        // run through signal propagation and clearing, instant
-        this.signalsReady = false;
-        while (!this.signalsReady) {
-            this.signalsReady = true;
-            // for every unpropagated action with signals, propagate and clear signals
-            for (var _i = 0, _a = this.queue.filter(function (a) { return !a.propagated && a.signals && a.signals.length > 0; }); _i < _a.length; _i++) {
-                var action = _a[_i];
-                for (var _b = 0, _c = action.signals; _b < _c.length; _b++) {
-                    var signal = _c[_b];
-                    // new signal to propagate
-                    this.signalsReady = false;
-                    var type = signal.type;
-                    // send to every receiver
-                    for (var _d = 0, _e = this.receivers; _d < _e.length; _d++) {
-                        var receiver = _e[_d];
-                        if (receiver["on_" + type]) {
-                            receiver["on_" + type](signal);
-                        }
-                    }
-                }
-                // mark as propagated
-                action.propagated = true;
-            }
-        }
-        // reset propagation for actions with duration
-        for (var _f = 0, _g = this.queue.filter(function (a) { return a.propagated === true; }); _f < _g.length; _f++) {
-            var action = _g[_f];
-            action.propagated = false;
-        }
-        this.executeNext();
-    };
-    Game.prototype.executeNext = function () {
+    Game.prototype.processNext = function () {
         var _this = this;
         // get next action to execute
         if (this.queue.length > 0) {
+            this.queueSpliceI = 0;
             var action = this.queue.shift();
+            // func: execute command
             if (action.func) {
                 if (this.actions[action.func]) {
                     var func = this.actions[action.func];
@@ -320,20 +298,37 @@ var Game = /** @class */ (function () {
                     throw "Unknown action " + action.func + ", args " + action.args;
                 }
             }
-            // execute the next instantly or with pause
+            // events: propagate events
+            if (action.events && action.events.length > 0) {
+                for (var _i = 0, _a = action.events; _i < _a.length; _i++) {
+                    var event_1 = _a[_i];
+                    // new event to propagate
+                    var type = event_1.type;
+                    // send to every handler
+                    var responses = [];
+                    console.log({ event: event_1, i: this.queueSpliceI });
+                    for (var _b = 0, _c = this.handlers.asArray(); _b < _c.length; _b++) {
+                        var handler = _c[_b];
+                        if (handler["on_" + type]) {
+                            handler["on_" + type](event_1);
+                        }
+                    }
+                }
+            }
+            // pause: execute the next instantly or with pause
+            this.updateUI();
             if (action.pause) {
                 setTimeout(function () {
-                    _this.executeNext();
+                    _this.processNext();
                 }, action.pause);
             }
             else {
-                this.executeNext();
+                this.processNext();
             }
         }
         else {
             // loop again
             this.time += 1;
-            this.updateUI();
             this.getIntents();
         }
     };
@@ -653,6 +648,242 @@ var Player = /** @class */ (function () {
     return Player;
 }());
 exports.Player = Player;
+
+
+/***/ }),
+
+/***/ "./src/PriorityQueue.ts":
+/*!******************************!*\
+  !*** ./src/PriorityQueue.ts ***!
+  \******************************/
+/***/ ((__unused_webpack_module, exports) => {
+
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+var PriorityQueue = /** @class */ (function () {
+    function PriorityQueue() {
+        this.list = [];
+    }
+    PriorityQueue.prototype.enqueue = function (element) {
+        this.list.push(element);
+        this.reorganise();
+        return element;
+    };
+    PriorityQueue.prototype.reorganise = function () {
+        this.list = this.list.sort(function (a, b) { return a.value - b.value; });
+    };
+    PriorityQueue.prototype.getAt = function (i) {
+        return this.list[i].element;
+    };
+    PriorityQueue.prototype.asArray = function () {
+        return this.list.map(function (pqe) { return pqe.element; });
+    };
+    return PriorityQueue;
+}());
+exports.PriorityQueue = PriorityQueue;
+
+
+/***/ }),
+
+/***/ "./src/modDebug.ts":
+/*!*************************!*\
+  !*** ./src/modDebug.ts ***!
+  \*************************/
+/***/ ((module, exports, __webpack_require__) => {
+
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+var timing = __webpack_require__(/*! ./timing */ "./src/timing.ts");
+function loadMod(player, game) {
+    game.actions.wait = function (ticks) {
+        game.newLine("Still waiting... of " + ticks);
+    };
+    function createNewLineAction(text) {
+        return {
+            func: "newLine",
+            args: [text],
+        };
+    }
+    function createWaitAction(ticks) {
+        return {
+            func: "wait",
+            args: [ticks],
+            duration: ticks,
+            // 1 -> 1, 10 -> 2
+            pause: timing.mpt / Math.pow(ticks, 1),
+        };
+    }
+    // // wait various durations
+    // player.patterns.push({
+    //     intents: () => {
+    //         let intents = [];
+    //         let durations = [
+    //             { baseName: "1 tick", dur: 1 },
+    //             { baseName: "3 ticks", dur: 3 },
+    //             { baseName: "6 ticks", dur: 6 },
+    //             // { baseName: "12 ticks", dur: 12 },
+    //             { baseName: "1 minute", dur: timing.m(1) },
+    //             { baseName: "1 hour", dur: timing.h(1) },
+    //             { baseName: "1 day", dur: timing.h(24) },
+    //         ];
+    //         for (let duration of durations) {
+    //             let intent = {
+    //                 representation: [
+    //                     game.word("wait"),
+    //                     game.word(duration.baseName),
+    //                 ],
+    //                 sequence: [
+    //                     createNewLineAction(`You wait ${duration.dur} ticks.`),
+    //                     createWaitAction(duration.dur),
+    //                 ],
+    //             };
+    //             intents.push(intent);
+    //         }
+    //         return intents;
+    //     },
+    // });
+    // random clapping
+    player.addPattern({
+        intents: function () {
+            var intents = [];
+            // the effect function
+            function effect() {
+                game.newLine("CLAP!");
+            }
+            // the sequence
+            intents.push({
+                representation: [game.word("DEBUG"), game.word("slow clap.")],
+                sequence: [
+                    createWaitAction(4),
+                    createNewLineAction("CLAP!"),
+                    createWaitAction(2),
+                    createNewLineAction("CLAP!"),
+                    createNewLineAction("CLAP!"),
+                    createWaitAction(2),
+                    createNewLineAction("CLAP!"),
+                    createNewLineAction("CLAP!"),
+                    createNewLineAction("CLAP!"),
+                ],
+            });
+            return intents;
+        },
+    });
+    function createPingAction() {
+        return {
+            func: "newLine",
+            args: ["ping"],
+            pause: 100,
+            events: [{ type: "ping" }],
+            duration: 0,
+        };
+    }
+    // 3x ping, to be responded to with pong and peng
+    player.addPattern({
+        intents: function () {
+            var intents = [];
+            intents.push({
+                representation: [game.word("DEBUG"), game.word("3 x ping.")],
+                sequence: [
+                    createPingAction(),
+                    createPingAction(),
+                    createPingAction(),
+                ],
+            });
+            return intents;
+        },
+    });
+    game.addHandler(0, {
+        on_ping: function (data) {
+            game.enqueue({
+                func: "newLine",
+                args: ["Pong!"],
+                events: [{ type: "pong" }],
+                pause: 300,
+            });
+        },
+    });
+    game.addHandler(0, {
+        on_pong: function (data) {
+            game.enqueue({
+                func: "newLine",
+                args: ["Peng!"],
+                events: [{ type: "peng" }],
+                pause: 300,
+            });
+        },
+    });
+    // plain longer action
+    player.addPattern({
+        intents: function () {
+            var intents = [];
+            // the sequence
+            intents.push({
+                representation: [
+                    game.word("DEBUG"),
+                    game.word("POW"),
+                    game.word("POW"),
+                    game.word("POW"),
+                ],
+                sequence: [createNewLineAction("POW POW POW!")],
+            });
+            return intents;
+        },
+    });
+    // plain shorter action
+    player.addPattern({
+        intents: function () {
+            var intents = [];
+            // the sequence
+            intents.push({
+                representation: [game.word("DEBUG"), game.word("POW")],
+                sequence: [createNewLineAction("POW!")],
+            });
+            return intents;
+        },
+    });
+    // duration 2 action that releases pings
+    player.addPattern({
+        intents: function () {
+            var intents = [];
+            // the sequence
+            intents.push({
+                representation: [game.word("DEBUG"), game.word("long-ping")],
+                sequence: [
+                    {
+                        func: "newLine",
+                        args: ["piiiiiiiiing!"],
+                        pause: 300,
+                        events: [{ type: "ping" }],
+                        duration: 2,
+                    },
+                ],
+            });
+            return intents;
+        },
+    });
+    // 3 ticks
+    player.addPattern({
+        intents: function () {
+            var intents = [];
+            // the sequence
+            intents.push({
+                representation: [game.word("DEBUG"), game.word("wait 3 ticks")],
+                sequence: [createWaitAction(3)],
+            });
+            return intents;
+        },
+    });
+    // tick timers up
+    game.addHandler(0, {
+        on_tick: function (data) {
+            for (var _i = 0, _a = game.entities.filter(function (e) { return e.timer; }); _i < _a.length; _i++) {
+                var timer = _a[_i];
+                timer.timer.time += 1;
+            }
+        },
+    });
+}
+module.exports = { loadMod: loadMod };
 
 
 /***/ }),
@@ -1059,7 +1290,11 @@ function loadMod(player, game) {
         if (target.health < 5) {
             game.newLine("Some fluff flies out of the ruptures. 1 damage!");
             target.health -= 1;
-            game.emitSignal({ type: "damageDealt", by: attacker, to: target });
+            game.queueEvent({
+                type: "damageDealt",
+                from: attacker,
+                to: target,
+            });
         }
     };
     player.addPattern({
@@ -1148,9 +1383,9 @@ function loadMod(player, game) {
         var target = game.getById(targetId);
         game.newLine("You tear out the " + target.baseName + "'s insides for 2 damage!");
         target.health -= 2;
-        game.emitSignal({
+        game.queueEvent({
             type: "damageDealt",
-            by: attacker,
+            from: attacker,
             to: target,
             amount: 2,
         });
@@ -1176,9 +1411,9 @@ function loadMod(player, game) {
             return intents;
         },
     });
-    game.receivers.push({
+    game.addHandler(0, {
         on_damageDealt: function (data) {
-            game.newLine("Damage dealt by " + data.by.baseName);
+            game.newLine("Damage dealt by " + data.from.baseName);
             if (data.to.health <= 0 && !data.to.dead) {
                 data.to.dead = true;
                 game.newLine("You have defeated your first enemy, a vile " + data.to.baseName + ". It drops a teabag!");
@@ -1194,7 +1429,7 @@ function loadMod(player, game) {
             }
         },
     });
-    game.receivers.push({
+    game.addHandler(0, {
         on_tick: function (data) {
             var _loop_1 = function (stove_1) {
                 if (stove_1.active) {
@@ -1238,7 +1473,7 @@ function loadMod(player, game) {
             }
         },
     });
-    game.receivers.push({
+    game.addHandler(900, {
         on_tick: function (data) {
             var _loop_3 = function (fluidContainer) {
                 for (var _i = 0, _a = game.entities.filter(function (hotFluid) {
@@ -1254,7 +1489,7 @@ function loadMod(player, game) {
                         var infusingTeabag = _c[_b];
                         count += 1;
                         prefix += infusingTeabag.infusable.flavour + " ";
-                        game.emitSignal({ type: "teaMade" });
+                        game.queueEvent({ type: "teaMade" });
                         if (count < 3) {
                             hotFluid.baseName = prefix + " tea";
                             hotFluid.tea = true;
@@ -1281,7 +1516,7 @@ function loadMod(player, game) {
         invisible: true,
         winBehaviorState: { won: false, uberWon: false },
     });
-    game.receivers.push({
+    game.addHandler(1000, {
         on_teaMade: function (data) {
             var state = game.entities.filter(function (e) { return e.winBehaviorState; })[0];
             if (state.winBehaviorState.won === false) {
@@ -1451,8 +1686,8 @@ game.player = player;
 // load mods
 var teaRoomMod = __webpack_require__(/*! ./modTeaRoom */ "./src/modTeaRoom.ts");
 teaRoomMod.loadMod(player, game);
-// let debugMod = require("./modDebug");
-// debugMod.loadMod(player, game);
+var debugMod = __webpack_require__(/*! ./modDebug */ "./src/modDebug.ts");
+debugMod.loadMod(player, game);
 var debug = false;
 var area = game.addEntity({
     baseName: "room",

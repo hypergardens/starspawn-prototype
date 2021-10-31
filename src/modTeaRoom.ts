@@ -431,7 +431,11 @@ function loadMod(player, game: GameModule.Game) {
         if (target.health < 5) {
             game.newLine(`Some fluff flies out of the ruptures. 1 damage!`);
             target.health -= 1;
-            game.emitSignal({ type: "damageDealt", by: attacker, to: target });
+            game.queueEvent({
+                type: "damageDealt",
+                from: attacker,
+                to: target,
+            });
         }
     };
 
@@ -527,9 +531,9 @@ function loadMod(player, game: GameModule.Game) {
             `You tear out the ${target.baseName}'s insides for 2 damage!`
         );
         target.health -= 2;
-        game.emitSignal({
+        game.queueEvent({
             type: "damageDealt",
-            by: attacker,
+            from: attacker,
             to: target,
             amount: 2,
         });
@@ -556,9 +560,9 @@ function loadMod(player, game: GameModule.Game) {
         },
     });
 
-    game.receivers.push({
+    game.addHandler(0, {
         on_damageDealt: function (data) {
-            game.newLine(`Damage dealt by ${data.by.baseName}`);
+            game.newLine(`Damage dealt by ${data.from.baseName}`);
             if (data.to.health <= 0 && !data.to.dead) {
                 data.to.dead = true;
                 game.newLine(
@@ -580,7 +584,7 @@ function loadMod(player, game: GameModule.Game) {
         },
     });
 
-    game.receivers.push({
+    game.addHandler(0, {
         on_tick: function (data) {
             for (let stove of game.entities.filter(
                 (e) => e.baseName === "stove"
@@ -622,7 +626,7 @@ function loadMod(player, game: GameModule.Game) {
         },
     });
 
-    game.receivers.push({
+    game.addHandler(900, {
         on_tick: function (data) {
             for (let fluidContainer of game.entities.filter(
                 (e) => e.fluidContainer
@@ -641,7 +645,7 @@ function loadMod(player, game: GameModule.Game) {
                     )) {
                         count += 1;
                         prefix += `${infusingTeabag.infusable.flavour} `;
-                        game.emitSignal({ type: "teaMade" });
+                        game.queueEvent({ type: "teaMade" });
                         if (count < 3) {
                             hotFluid.baseName = `${prefix} tea`;
                             hotFluid.tea = true;
@@ -667,7 +671,7 @@ function loadMod(player, game: GameModule.Game) {
         winBehaviorState: { won: false, uberWon: false },
     });
 
-    game.receivers.push({
+    game.addHandler(1000, {
         on_teaMade: function (data) {
             let state = game.entities.filter((e) => e.winBehaviorState)[0];
             if (state.winBehaviorState.won === false) {

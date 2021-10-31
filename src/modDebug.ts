@@ -1,6 +1,6 @@
 import timing = require("./timing");
-
-function loadMod(player, game) {
+import { Game } from "./GameModule";
+function loadMod(player, game: Game) {
     game.actions.wait = function (ticks) {
         game.newLine(`Still waiting... of ${ticks}`);
     };
@@ -84,7 +84,7 @@ function loadMod(player, game) {
             func: "newLine",
             args: ["ping"],
             pause: 100,
-            signals: [{ type: "ping" }],
+            events: [{ type: "ping" }],
             duration: 0,
         };
     }
@@ -105,23 +105,23 @@ function loadMod(player, game) {
         },
     });
 
-    game.receivers.push({
+    game.addHandler(0, {
         on_ping: function (data) {
             game.enqueue({
                 func: "newLine",
                 args: ["Pong!"],
-                signals: [{ type: "pong" }],
+                events: [{ type: "pong" }],
                 pause: 300,
             });
         },
     });
 
-    game.receivers.push({
+    game.addHandler(0, {
         on_pong: function (data) {
             game.enqueue({
                 func: "newLine",
                 args: ["Peng!"],
-                signals: [{ type: "peng" }],
+                events: [{ type: "peng" }],
                 pause: 300,
             });
         },
@@ -170,7 +170,7 @@ function loadMod(player, game) {
                         func: "newLine",
                         args: ["piiiiiiiiing!"],
                         pause: 300,
-                        signals: [{ type: "ping" }],
+                        events: [{ type: "ping" }],
                         duration: 2,
                     },
                 ],
@@ -193,10 +193,10 @@ function loadMod(player, game) {
     });
 
     // tick timers up
-    game.receivers.push({
+    game.addHandler(0, {
         on_tick: function (data) {
-            for (let timer of game.entities.filter((e) => e.type === "timer")) {
-                timer.time += 1;
+            for (let timer of game.entities.filter((e) => e.timer)) {
+                timer.timer.time += 1;
             }
         },
     });

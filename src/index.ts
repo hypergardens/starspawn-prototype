@@ -11,8 +11,8 @@ game.player = player;
 let teaRoomMod = require("./modTeaRoom");
 teaRoomMod.loadMod(player, game);
 
-// let debugMod = require("./modDebug");
-// debugMod.loadMod(player, game);
+let debugMod = require("./modDebug");
+debugMod.loadMod(player, game);
 
 let debug = false;
 let area = game.addEntity({

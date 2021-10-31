@@ -1,8 +1,8 @@
 // let utils = require("./utils")
 // let timing = require("./timing");
 import * as timing from "./timing";
-import { Entity, Action, Signal } from "./Interfaces";
-
+import { Entity, Action, Event } from "./Interfaces";
+import { PriorityQueue } from "./PriorityQueue";
 import { Player } from "./PlayerModule";
 import { LogItem } from "./LogItem";
 
@@ -14,14 +14,14 @@ export class Game {
     entities: Entity[];
     words: any;
     intentsReady: boolean;
-    signalsReady: boolean;
     queue: any[];
-    receivers: any[];
     time: number;
     focus: any;
     player: any;
     playRandomly: boolean;
     actions: any;
+    handlers: PriorityQueue;
+    queueSpliceI: number;
 
     constructor() {
         this.id = 0;
@@ -33,9 +33,9 @@ export class Game {
         this.log = [];
 
         this.intentsReady = true;
-        this.signalsReady = true;
         this.queue = []; // [Action*]
-        this.receivers = []; // {on_signalType:func()}
+        this.queueSpliceI = 0;
+        this.handlers = new PriorityQueue(); // {on_eventType:func()}
         this.time = 0;
         this.player = null;
         this.playRandomly = false;
@@ -74,6 +74,11 @@ export class Game {
             depth += 1;
         }
         return depth;
+    }
+
+    addHandler(value: number, handler: any) {
+        this.handlers.enqueue({ value, element: handler });
+        return handler;
     }
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -141,22 +146,29 @@ export class Game {
         return accessible && this.isAccessible(parent);
     }
 
-    enqueue(action, i = -1) {
-        if (i === -1) {
+    enqueue(action, splice = true) {
+        if (!splice) {
             this.queue.push(action);
         } else {
-            this.queue.splice(i, 0, action);
+            this.queue.splice(this.queueSpliceI, 0, action);
+            this.queueSpliceI++;
         }
     }
 
-    emitSignal(data: Signal) {
-        for (let receiver of this.receivers) {
-            if (receiver[`on_${data.type}`]) {
-                receiver[`on_${data.type}`](data);
+    emitEvent(data: Event) {
+        for (let handler of this.handlers.asArray()) {
+            if (handler[`on_${data.type}`]) {
+                console.log({ data });
+                handler[`on_${data.type}`](data);
             }
         }
     }
 
+    queueEvent(data: Event) {
+        this.enqueue({ events: [data] });
+    }
+
+    // called when action is first started
     processAction(action: Action) {
         if (action.maxDuration === undefined) {
             action.maxDuration = action.duration || 0;
@@ -229,7 +241,6 @@ export class Game {
 
     getIntents() {
         // get this tick's Actions {aedpcs} for every entity with intent (null or Intent)
-        this.queue = [];
         this.intentsReady = true;
         for (let entity of this.entities.filter((e) => e.actor)) {
             let intent = entity.actor.intent;
@@ -269,11 +280,11 @@ export class Game {
                     // process and enqueue action
                     intent.sequence[0] = this.processAction(intent.sequence[0]);
                     let action = intent.sequence[0];
-                    this.enqueue(action);
+                    this.enqueue(action, false);
 
                     // queue up actions including the first with duration
                     if (action.duration <= 0 || action.duration === undefined) {
-                        // instant action, keep queueing
+                        // instant action, keep queueSpliceIng
                         intent.sequence.splice(0, 1);
                     } else if (action.duration > 0) {
                         // action that will be taken multiple times
@@ -283,63 +294,31 @@ export class Game {
                             intent.sequence.splice(0, 1);
                         }
                         action.duration -= 1;
-                        // this.newLine(
-                        //     `${action.duration}/${action.maxDuration}`
-                        // );
                     } else {
                         // throw `Not sure what this means`;
                     }
                 }
+                // if the last action was extracted, render null
                 if (intent.sequence.length === 0) {
                     entity.actor.intent = null;
                 }
             }
         }
-        // when ready, propagate signals
+        // when ready, propagate events
         if (this.intentsReady) {
-            // queue up a tick signal
-            this.queue.push({ signals: [{ type: "tick" }] });
+            // queue up a tick event
+            this.queue.push({ events: [{ type: "tick" }] });
             // newLine(`starting tick ${game.time}`);
-            this.propagateSignals();
+            this.processNext();
         }
     }
 
-    propagateSignals() {
-        // run through signal propagation and clearing, instant
-        this.signalsReady = false;
-        while (!this.signalsReady) {
-            this.signalsReady = true;
-            // for every unpropagated action with signals, propagate and clear signals
-            for (let action of this.queue.filter(
-                (a) => !a.propagated && a.signals && a.signals.length > 0
-            )) {
-                for (let signal of action.signals) {
-                    // new signal to propagate
-                    this.signalsReady = false;
-                    let type = signal.type;
-                    // send to every receiver
-                    for (let receiver of this.receivers) {
-                        if (receiver[`on_${type}`]) {
-                            receiver[`on_${type}`](signal);
-                        }
-                    }
-                }
-                // mark as propagated
-                action.propagated = true;
-            }
-        }
-        // reset propagation for actions with duration
-        for (let action of this.queue.filter((a) => a.propagated === true)) {
-            action.propagated = false;
-        }
-
-        this.executeNext();
-    }
-
-    executeNext() {
+    processNext() {
         // get next action to execute
         if (this.queue.length > 0) {
+            this.queueSpliceI = 0;
             let action = this.queue.shift();
+            // func: execute command
             if (action.func) {
                 if (this.actions[action.func]) {
                     let func = this.actions[action.func];
@@ -352,18 +331,34 @@ export class Game {
                     throw `Unknown action ${action.func}, args ${action.args}`;
                 }
             }
-            // execute the next instantly or with pause
+            // events: propagate events
+            if (action.events && action.events.length > 0) {
+                for (let event of action.events) {
+                    // new event to propagate
+                    let type = event.type;
+                    // send to every handler
+                    let responses = [];
+                    console.log({ event, i: this.queueSpliceI });
+                    for (let handler of this.handlers.asArray()) {
+                        if (handler[`on_${type}`]) {
+                            handler[`on_${type}`](event);
+                        }
+                    }
+                }
+            }
+            // pause: execute the next instantly or with pause
+
+            this.updateUI();
             if (action.pause) {
                 setTimeout(() => {
-                    this.executeNext();
+                    this.processNext();
                 }, action.pause);
             } else {
-                this.executeNext();
+                this.processNext();
             }
         } else {
             // loop again
             this.time += 1;
-            this.updateUI();
             this.getIntents();
         }
     }

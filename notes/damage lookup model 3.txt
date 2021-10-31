@@ -1,0 +1,169 @@
+redesigning the Divine Queue.
+
+
+
+
+Entity < Actor|Item|Quality|Intent|Area
+
+Capability
+    intents() -> Intent[]
+
+Vertical slices
+
+STANDARD:
+
+BuffName
+QualityName
+MaxQualityName
+PlusQualityName
+MulQualityName
+
+1) Player equips RedDagger
+Player
+    player: true
+    id: 0
+    actor:
+        intent:
+            sequence: Action[]
+        moves:
+            intendStrike(target) - one attack at meleeWeapon
+                at Item.meleeDamage + STR
+            createFlurry(target) - 3 random attacks with a melee weapon
+                each at Item.meleeDamage + STR/2
+    triggers:
+        "on_QueryIntent": "PlayerQueryIntent" -> (who):
+            if who is me, set options and return false
+            if intent, else return true
+
+        "on_Healed": "GreenMessage" -> (source,who,value):
+            if who is me:
+                newLine("You heal value" | from source) || greenMessage("You heal")
+                SetQuality(Player, Health, getHealth+value)
+    
+    Health: true
+        parent: Player
+        relation: "Quality"
+        value: 500
+
+    MaxHealth: true
+        parent: Player
+        relation: "Quality"
+        value: 550
+
+    Rage:
+        parent: Player
+        relation: "Buff"
+        duration: 5
+        value: 50
+        modMulMeleeDamage: 50
+
+    Strength:
+        parent: Player,
+        relation: "Quality"
+        value: 10
+
+    StrengthCharm
+        parent: Player
+        relation: "activeItem"
+        modMulMeleeDamage: 10
+        moves:
+            "enrage": ["parent", 50pow, 50dur]
+
+    RedBlade
+    id: 1
+    parent: 0
+    relation: "activeItem"
+    item: {
+        material: {
+            redBone: 2,
+            wood: 1
+        }
+    }
+    moves:
+        createLifeReap(target) - a potent attack
+            at WPN_DMG * 2 + STR
+            cooldown, not unequippable for 10s
+
+    triggers:
+        onDamageDealt(n) -> {
+            func: "healActor",
+            args: [n/2],
+            signals: ["onHealed,lifesteal,actor,n/2"]
+
+    weapon:
+        types: {
+            melee: true
+        }
+        speed: 6
+        damage: 
+            piercing: 40 
+
+
+    Dummy
+
+    onAttacked(attacker, defender, damage)
+
+    ^Armor:
+        absorbPhysical: 20
+
+    ^Health:
+        value: 1000
+
+1.1) On equip, the player can now lifeReap, as well as strike and flurry
+
+    player.intents() -> move, flee, lifeReap, strike, flurry
+
+    intendStrike(weapon, target):
+        damageAddIncrease = 0 
+            + getTotal("Strength") 
+            + getTotal("PlusMeleeDamage")
+            + getTotal("Plus{Piercing}Damage")
+            + weapon.damage
+        damageAddIncrease = 1 * getTotal("MulMeleeDamage")
+
+        damage == { piercing:50 }
+
+        return Intent:
+            Sequence: [
+                {
+                    createWait("strike", weapon.speed * getTotal("MulSpeed"))
+                },
+                {
+                    signals: [{type:"Attacked", from:attacker, to:defender, damage}],
+                    pause: 300
+                }
+            ]
+        }
+
+2) The player swings, then launches an attack at Dummy, an Action queued up from a factory
+
+
+3) The Dummy reduces the damage
+
+DamageResolver:
+    parent: Dummy
+    on_Attacked(type=="Attacked", from, to==parent, damage):
+        if damage.subtype = p
+
+Dummy
+    prototype: "Dummy"
+    p:500 chance to evade: 10%
+    p:600 20 physical Armor
+    p:700 lash back when attacked
+
+    triggers:
+        on_Attacked(attacker, defender=parent, damage)
+
+^Armor:
+    armor
+    20 physical
+
+
+Physical
+    Melee
+        Piercing
+        Slashing
+        Blunt
+
+    Ranged
+        Kinetic
