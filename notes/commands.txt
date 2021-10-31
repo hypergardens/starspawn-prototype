@@ -1,1 +1,1 @@
-watchify game3.js -o main.js -v
+npm run build

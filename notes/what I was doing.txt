@@ -1,1 +1,20 @@
-adding the items and functions back in at modTeaRoom.ts
+redesigning the Divine Queue.
+
+
+
+
+Entity < Actor|Item|Quality|Intent|Area
+
+Capability
+    intents() -> Intent[]
+
+Vertical slices
+
+1) Player equips RedDagger
+    Player
+    id: 0
+    
+    RedDagger
+    id: 1
+    parent: 0
+    relation: "activeItem"

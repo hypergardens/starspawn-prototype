@@ -1196,12 +1196,12 @@ function loadMod(player, game) {
     });
     game.receivers.push({
         on_tick: function (data) {
-            var _loop_1 = function (stove) {
-                if (stove.active) {
-                    stove.ctr += 1;
+            var _loop_1 = function (stove_1) {
+                if (stove_1.active) {
+                    stove_1.ctr += 1;
                     // put out a message regularly
-                    if (stove.ctr >= 2) {
-                        stove.ctr = 0;
+                    if (stove_1.ctr >= 2) {
+                        stove_1.ctr = 0;
                         game.newLine("The stove's flame burns a warm orange.");
                     }
                     var _loop_2 = function (containerOnStove) {
@@ -1225,7 +1225,7 @@ function loadMod(player, game) {
                     // heat up fluid inside containers on stove
                     for (var _i = 0, _a = game.entities.filter(function (containerOnStove) {
                         return containerOnStove.fluidContainer &&
-                            game.isParent(stove, containerOnStove);
+                            game.isParent(stove_1, containerOnStove);
                     }); _i < _a.length; _i++) {
                         var containerOnStove = _a[_i];
                         _loop_2(containerOnStove);
@@ -1233,8 +1233,8 @@ function loadMod(player, game) {
                 }
             };
             for (var _i = 0, _a = game.entities.filter(function (e) { return e.baseName === "stove"; }); _i < _a.length; _i++) {
-                var stove = _a[_i];
-                _loop_1(stove);
+                var stove_1 = _a[_i];
+                _loop_1(stove_1);
             }
         },
     });
@@ -1295,6 +1295,81 @@ function loadMod(player, game) {
         invisible: true,
         timer: { time: -1 },
     });
+    var area = game.entities.filter(function (e) { return e.area; })[0];
+    var stove = game.addEntity({
+        baseName: "stove",
+        active: false,
+        surface: true,
+    }, area);
+    var faucet = game.addEntity({
+        baseName: "faucet",
+        fluidSource: "water",
+    }, area);
+    var punchingBag = game.addEntity({
+        baseName: "punching bag",
+        health: 5,
+    }, area);
+    var teaCupboard = game.addEntity({
+        baseName: "tea cupboard",
+        solidContainer: true,
+        closed: true,
+    }, area);
+    var cranberryTeabag = game.addEntity({
+        baseName: "cranberry teabag",
+        item: true,
+        infusable: {
+            flavour: "OBVIOUS",
+        },
+    }, teaCupboard);
+    var table = game.addEntity({
+        baseName: "table",
+        surface: true,
+    }, area);
+    var knife = game.addEntity({
+        baseName: "knife",
+        item: true,
+    }, table, "on");
+    var cup = game.addEntity({
+        baseName: "cup",
+        item: true,
+        fluidContainer: true,
+    }, table, "on");
+    var bowl = game.addEntity({
+        baseName: "bowl",
+        item: true,
+        fluidContainer: true,
+    }, table, "on");
+    var note = game.addEntity({
+        baseName: "super secret note",
+        item: true,
+        readable: {
+            message: "The note says: \"The password is 6...",
+        },
+    }, table, "on");
+    var lockedChest = game.addEntity({
+        baseName: "locked chest",
+        solidContainer: true,
+        closed: true,
+        item: true,
+        locked: { isLocked: true, password: "6" },
+    }, table, "on");
+    var smallerChest = game.addEntity({
+        baseName: "smaller chest",
+        solidContainer: true,
+        closed: true,
+        item: true,
+    }, lockedChest, "in");
+    var evenSmallerChest = game.addEntity({
+        baseName: "even smaller chest",
+        solidContainer: true,
+        closed: true,
+        item: true,
+    }, smallerChest, "in");
+    var secretTeabag = game.addEntity({
+        baseName: "secretive teabag",
+        item: true,
+        infusable: { flavour: "SECRET" },
+    }, smallerChest, "in");
 }
 module.exports = { loadMod: loadMod };
 
@@ -1380,84 +1455,10 @@ teaRoomMod.loadMod(player, game);
 // debugMod.loadMod(player, game);
 var debug = false;
 var area = game.addEntity({
-    baseName: "tea room",
+    baseName: "room",
     area: true,
 });
 game.addEntity(player, area);
-var stove = game.addEntity({
-    baseName: "stove",
-    active: false,
-    surface: true,
-}, area);
-var faucet = game.addEntity({
-    baseName: "faucet",
-    fluidSource: "water",
-}, area);
-var punchingBag = game.addEntity({
-    baseName: "punching bag",
-    health: 5,
-}, area);
-var teaCupboard = game.addEntity({
-    baseName: "tea cupboard",
-    solidContainer: true,
-    closed: true,
-}, area);
-var cranberryTeabag = game.addEntity({
-    baseName: "cranberry teabag",
-    item: true,
-    infusable: {
-        flavour: "OBVIOUS",
-    },
-}, teaCupboard);
-var table = game.addEntity({
-    baseName: "table",
-    surface: true,
-}, area);
-var knife = game.addEntity({
-    baseName: "knife",
-    item: true,
-}, table, "on");
-var cup = game.addEntity({
-    baseName: "cup",
-    item: true,
-    fluidContainer: true,
-}, table, "on");
-var bowl = game.addEntity({
-    baseName: "bowl",
-    item: true,
-    fluidContainer: true,
-}, table, "on");
-var note = game.addEntity({
-    baseName: "super secret note",
-    item: true,
-    readable: {
-        message: "The note says: \"The password is 6...",
-    },
-}, table, "on");
-var lockedChest = game.addEntity({
-    baseName: "locked chest",
-    solidContainer: true,
-    closed: true,
-    item: true,
-    locked: { isLocked: true, password: "6" },
-}, table, "on");
-var smallerChest = game.addEntity({
-    baseName: "smaller chest",
-    solidContainer: true,
-    closed: true,
-    item: true,
-}, lockedChest, "in");
-var evenSmallerChest = game.addEntity({
-    baseName: "even smaller chest",
-    solidContainer: true,
-    closed: true,
-    item: true,
-}, smallerChest, "in");
-var secretTeabag = game.addEntity({
-    baseName: "secretive teabag",
-    item: true,
-    infusable: { flavour: "SECRET" },
-}, smallerChest, "in");
 console.log(game.entities);
 console.log("comps of area");
 var keys = "abcdefghijklmnopqrstuwxyz".split("");
