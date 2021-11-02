@@ -464,6 +464,7 @@ exports.Game = Game;
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 var Player = /** @class */ (function () {
     function Player() {
+        this.parent = undefined;
         this.baseName = "player";
         this.player = true;
         this.actor = {
@@ -694,9 +695,10 @@ exports.PriorityQueue = PriorityQueue;
 
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 var timing = __webpack_require__(/*! ./timing */ "./src/timing.ts");
-function loadMod(player, game) {
+function loadMod(game) {
+    var player = game.entities.filter(function (e) { return e.player; })[0];
     game.actions.wait = function (ticks) {
-        game.newLine("Still waiting... of " + ticks);
+        // game.newLine(`Still waiting... of ${ticks}`);
     };
     function createNewLineAction(text) {
         return {
@@ -713,6 +715,38 @@ function loadMod(player, game) {
             pause: timing.mpt / Math.pow(ticks, 1),
         };
     }
+    game.actions.traverse = function (actorId, pathId) {
+        var path = game.getById(pathId);
+        var origin = game.getById(path.path.from);
+        var destination = game.getById(path.path.to);
+        var actor = game.getById(actorId);
+        if (actor.player) {
+            game.newLine("You go to " + destination.baseName);
+        }
+        game.queueEvent({
+            type: "traverse",
+        });
+        actor.parent = destination.id;
+    };
+    player.addPattern({
+        intents: function () {
+            var intents = [];
+            for (var _i = 0, _a = game.entities.filter(function (e) { return e.path && e.path.from === player.parent; }); _i < _a.length; _i++) {
+                var path = _a[_i];
+                intents.push({
+                    representation: [
+                        game.word("go:"),
+                        game.getById(path.path.to),
+                    ],
+                    sequence: [
+                        createWaitAction(path.path.distance),
+                        { func: "traverse", args: [player.id, path.id] },
+                    ],
+                });
+            }
+            return intents;
+        },
+    });
     // // wait various durations
     // player.patterns.push({
     //     intents: () => {
@@ -883,6 +917,7 @@ function loadMod(player, game) {
         },
     });
 }
+exports.loadMod = loadMod;
 module.exports = { loadMod: loadMod };
 
 
@@ -904,7 +939,8 @@ var __spreadArrays = (this && this.__spreadArrays) || function () {
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 var timing = __webpack_require__(/*! ./timing */ "./src/timing.ts");
-function loadMod(player, game) {
+function loadMod(game) {
+    var player = game.entities.filter(function (e) { return e.player; })[0];
     game.actions.newLine = function () {
         var _a;
         var args = [];
@@ -1530,7 +1566,8 @@ function loadMod(player, game) {
         invisible: true,
         timer: { time: -1 },
     });
-    var area = game.entities.filter(function (e) { return e.area; })[0];
+    var area = game.entities.filter(function (e) { return e.baseName === "room A"; })[0];
+    console.log({ teaModRoom: area });
     var stove = game.addEntity({
         baseName: "stove",
         active: false,
@@ -1606,6 +1643,7 @@ function loadMod(player, game) {
         infusable: { flavour: "SECRET" },
     }, smallerChest, "in");
 }
+exports.loadMod = loadMod;
 module.exports = { loadMod: loadMod };
 
 
@@ -1677,6 +1715,8 @@ var exports = __webpack_exports__;
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 var GameModule = __webpack_require__(/*! ./GameModule */ "./src/GameModule.ts");
 var PlayerModule = __webpack_require__(/*! ./PlayerModule */ "./src/PlayerModule.ts");
+var teaRoomMod = __webpack_require__(/*! ./modTeaRoom */ "./src/modTeaRoom.ts");
+var debugMod = __webpack_require__(/*! ./modDebug */ "./src/modDebug.ts");
 // HACK
 // let newLine = utils.newLine;
 // import { newLine } from "./utils";
@@ -1684,18 +1724,44 @@ var game = new GameModule.Game();
 var player = new PlayerModule.Player();
 game.player = player;
 // load mods
-var teaRoomMod = __webpack_require__(/*! ./modTeaRoom */ "./src/modTeaRoom.ts");
-teaRoomMod.loadMod(player, game);
-var debugMod = __webpack_require__(/*! ./modDebug */ "./src/modDebug.ts");
-debugMod.loadMod(player, game);
 var debug = false;
-var area = game.addEntity({
-    baseName: "room",
+var areaA = game.addEntity({
+    baseName: "room A",
     area: true,
 });
-game.addEntity(player, area);
+var areaB = game.addEntity({
+    baseName: "room B",
+    area: true,
+});
+var areaC = game.addEntity({
+    baseName: "room C",
+    area: true,
+});
+game.addEntity({
+    path: {
+        from: areaA.id,
+        to: areaB.id,
+        distance: 10,
+    },
+});
+game.addEntity({
+    path: {
+        from: areaB.id,
+        to: areaC.id,
+        distance: 20,
+    },
+});
+game.addEntity({
+    path: {
+        from: areaC.id,
+        to: areaB.id,
+        distance: 4,
+    },
+});
+game.addEntity(player, areaA);
+teaRoomMod.loadMod(game);
+debugMod.loadMod(game);
 console.log(game.entities);
-console.log("comps of area");
 var keys = "abcdefghijklmnopqrstuwxyz".split("");
 document.addEventListener("keypress", function (event) {
     var name = event.key;

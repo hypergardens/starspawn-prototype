@@ -2,8 +2,11 @@ import * as timing from "./timing";
 import * as GameModule from "./GameModule";
 
 import { Entity, Action } from "./Interfaces";
+import { Player } from "./PlayerModule";
 
-function loadMod(player, game: GameModule.Game) {
+export function loadMod(game: GameModule.Game) {
+    let player = game.entities.filter((e) => e.player)[0] as Player;
+
     game.actions.newLine = (...args) => game.newLine.call(game, ...args);
     // let newLine = game.newLine;
 
@@ -690,8 +693,8 @@ function loadMod(player, game: GameModule.Game) {
         timer: { time: -1 },
     });
 
-    let area = game.entities.filter((e) => e.area)[0];
-
+    let area = game.entities.filter((e) => e.baseName === "room A")[0];
+    console.log({ teaModRoom: area });
     let stove = game.addEntity(
         {
             baseName: "stove",

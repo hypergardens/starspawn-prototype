@@ -1,8 +1,11 @@
 import timing = require("./timing");
 import { Game } from "./GameModule";
-function loadMod(player, game: Game) {
+import { Player } from "./PlayerModule";
+export function loadMod(game: Game) {
+    let player = game.entities.filter((e) => e.player)[0] as Player;
+
     game.actions.wait = function (ticks) {
-        game.newLine(`Still waiting... of ${ticks}`);
+        // game.newLine(`Still waiting... of ${ticks}`);
     };
 
     function createNewLineAction(text) {
@@ -22,6 +25,40 @@ function loadMod(player, game: Game) {
         };
     }
 
+    game.actions.traverse = function (actorId, pathId) {
+        let path = game.getById(pathId);
+        let origin = game.getById(path.path.from);
+        let destination = game.getById(path.path.to);
+        let actor = game.getById(actorId);
+        if (actor.player) {
+            game.newLine(`You go to ${destination.baseName}`);
+        }
+        game.queueEvent({
+            type: "traverse",
+        });
+        actor.parent = destination.id;
+    };
+
+    player.addPattern({
+        intents: function () {
+            let intents = [];
+            for (let path of game.entities.filter(
+                (e) => e.path && e.path.from === player.parent
+            )) {
+                intents.push({
+                    representation: [
+                        game.word("go:"),
+                        game.getById(path.path.to),
+                    ],
+                    sequence: [
+                        createWaitAction(path.path.distance),
+                        { func: "traverse", args: [player.id, path.id] },
+                    ],
+                });
+            }
+            return intents;
+        },
+    });
     // // wait various durations
     // player.patterns.push({
     //     intents: () => {

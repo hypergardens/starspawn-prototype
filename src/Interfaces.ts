@@ -43,6 +43,13 @@ export interface Entity {
 
     ctr?: number;
 
+    // path
+    path?: {
+        from: number;
+        to: number;
+        distance: number;
+    };
+
     // PLAYER
     actor?: {
         intent: {

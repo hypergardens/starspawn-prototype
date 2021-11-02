@@ -1,4 +1,5 @@
-export class Player {
+export class Player implements Entity {
+    parent: number;
     baseName: string;
     player: boolean;
     picking: boolean;
@@ -10,6 +11,7 @@ export class Player {
         intent: any;
     };
     constructor() {
+        this.parent = undefined;
         this.baseName = "player";
         this.player = true;
         this.actor = {

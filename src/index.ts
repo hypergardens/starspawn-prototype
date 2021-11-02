@@ -1,5 +1,7 @@
 import GameModule = require("./GameModule");
 import PlayerModule = require("./PlayerModule");
+import teaRoomMod = require("./modTeaRoom");
+import debugMod = require("./modDebug");
 // HACK
 // let newLine = utils.newLine;
 // import { newLine } from "./utils";
@@ -8,22 +10,50 @@ let player = new PlayerModule.Player();
 game.player = player;
 
 // load mods
-let teaRoomMod = require("./modTeaRoom");
-teaRoomMod.loadMod(player, game);
-
-let debugMod = require("./modDebug");
-debugMod.loadMod(player, game);
 
 let debug = false;
-let area = game.addEntity({
-    baseName: "room",
+let areaA = game.addEntity({
+    baseName: "room A",
     area: true,
 });
-game.addEntity(player, area);
+let areaB = game.addEntity({
+    baseName: "room B",
+    area: true,
+});
+
+let areaC = game.addEntity({
+    baseName: "room C",
+    area: true,
+});
+
+game.addEntity({
+    path: {
+        from: areaA.id,
+        to: areaB.id,
+        distance: 10,
+    },
+});
+game.addEntity({
+    path: {
+        from: areaB.id,
+        to: areaC.id,
+        distance: 20,
+    },
+});
+game.addEntity({
+    path: {
+        from: areaC.id,
+        to: areaB.id,
+        distance: 4,
+    },
+});
+game.addEntity(player, areaA);
+
+teaRoomMod.loadMod(game);
+debugMod.loadMod(game);
 
 console.log(game.entities);
 
-console.log("comps of area");
 let keys = "abcdefghijklmnopqrstuwxyz".split("");
 document.addEventListener(
     "keypress",
