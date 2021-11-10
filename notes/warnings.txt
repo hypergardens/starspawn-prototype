@@ -1,2 +1,6 @@
 Timing
     - the engine only handles one intent per tick
+    - unsure if emitEvent and QueueEvent are really different
+
+Logs
+    - ping leaves 3 empty

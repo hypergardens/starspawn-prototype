@@ -8,30 +8,32 @@
 
 <body>
     <div id="mainArea">
-        <div id="leftPane">
+        <div id="leftPane" class="pane">
+            <img style="display: inline-block;" src="player basic.png"></div>
+        <div id="centerPane" class="pane">
             <canvas id="clock" width="50" height="50" style="background-color: white"></canvas>
             <!-- <span style="background-color: darkorange; color: white; font-weight: bold;">fire</span> -->
             <!-- <span style="background-color:rgb(58, 47, 20); color: rgb(180, 179, 121); font-weight: bold;">wood</span> -->
             <!-- <span style="background-color: rgb(16, 39, 6); color: rgb(43, 255, 0); font-weight: bold;">cyber</span> -->
             <!-- <span style="background-color: rgb(20, 65, 133); color: aqua; font-weight: bold;">water</span> -->
             <div id="display">
-                V0.???: "I'm fixing it" edition. </br>
-                Welcome! You have to make some tea. Find all three glorious teabags! </br>
+                V0.4: "Core Two" edition. </br>
                 <!-- Welcome! I'm currently rewriting the game, so... it won't work for a day or two. Thanks for coming though! Enjoy the new colours! </br> -->
                 Please report any bugs and crashes to Gardens directly. Enjoy! </br>
                 <b>NEW FEATURE: Click objects on the right to focus them and filter actions.</b>
             </div>
-            <br></br>
             <div id="debug" style="background-color:darkgreen; color: #aff; font-size: x-large;"></div>
             <div id="command"></div>
             <!-- <div id="confirmChoice" style="background-color: rgb(23, 95, 29); color: #aff;">Confirm</div> -->
-            <br></br>
             <div id="options">
             </div>
         </div>
-        <div id="entityTree">
+        <div id="rightPane" class="pane">
+            <img style="display: inline-block;" src="enemy.png">
+            <div id="entityTree">
+            </div>
         </div>
-        <img style="display: inline-block;" src="player.png">
+    </div>
     </div>
     <script type="text/javascript" src="dist/dist/bundle.js"></script>
     <!-- <script type="text/javascript" src="Core.js"></script> -->

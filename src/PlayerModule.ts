@@ -1,6 +1,6 @@
 export class Player implements Entity {
     parent: number;
-    baseName: string;
+    name: string;
     player: boolean;
     picking: boolean;
     command: any[];
@@ -12,7 +12,7 @@ export class Player implements Entity {
     };
     constructor() {
         this.parent = undefined;
-        this.baseName = "player";
+        this.name = "player";
         this.player = true;
         this.actor = {
             intent: null,
@@ -71,11 +71,11 @@ export class Player implements Entity {
         let options = [];
         let validIntents = this.getValidIntents();
 
-        // console.log(`${validIntents.length} valid commands at command ${this.command.map(w => w.baseName)}`)
+        // console.log(`${validIntents.length} valid commands at command ${this.command.map(w => w.name)}`)
         for (let intent of validIntents) {
             // if the intent is the same length as the command, it can be confirmed
             if (intent.representation.length == this.command.length) {
-                options.push({ baseName: "> confirm <", type: "confirm" });
+                options.push({ name: "> confirm <", type: "confirm" });
             } else {
                 let newOption = intent.representation[this.command.length];
                 let duplicateThing = false;
@@ -92,7 +92,7 @@ export class Player implements Entity {
             }
         }
         if (this.command.length > 0) {
-            options.push({ baseName: "> cancel <", type: "cancel" });
+            options.push({ name: "> cancel <", type: "cancel" });
         }
         return options;
     }
@@ -151,7 +151,7 @@ export class Player implements Entity {
 
     updateCommandUI() {
         document.getElementById("command").innerHTML =
-            ">" + this.command.map((e) => e.baseName).join(" ");
+            ">" + this.command.map((e) => e.name).join(" ");
     }
 
     clearOptionsUI() {
@@ -168,9 +168,9 @@ export class Player implements Entity {
         let keys = "abcdefghijklmnopqrstuwxyz".split("");
 
         for (let i = 0; i < options.length; i++) {
-            let optionText = options[i].baseName;
+            let optionText = options[i].name;
 
-            // create a span with the optionText baseName
+            // create a span with the optionText name
             var shortcutNode = document.createElement("a");
             // shortcutNode.style.color = "lightgrey";
             shortcutNode.innerText = `${keys[i]}) `;

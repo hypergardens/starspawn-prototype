@@ -1,7 +1,7 @@
 export interface Entity {
     id?: number;
     parent?: number;
-    baseName?: string;
+    name?: string;
     rel?: string;
     // [key: string]: any;
 
@@ -42,6 +42,12 @@ export interface Entity {
     tea?: boolean;
 
     ctr?: number;
+    // quality
+    quality?: {
+        name: string;
+        value: any;
+        pyramid: boolean;
+    };
 
     // path
     path?: {
@@ -53,10 +59,8 @@ export interface Entity {
     // PLAYER
     actor?: {
         intent: {
-            representation: any[];
+            representation?: any[];
             sequence: any[];
-            elapsed: number;
-            totalDuration: number;
         };
     };
     setOptionsUI?: any;
@@ -88,6 +92,7 @@ export interface Action {
     tags?: any;
     processText?: string;
     // computed
+    actor?: number;
     id?: number;
     maxDuration?: number;
 }
@@ -96,48 +101,3 @@ export interface LogItem {
     id?: number;
     text?: string;
 }
-// export interface FluidSource extends Entity {
-//     fluidSource: string;
-// }
-
-// let test = <FluidSource>{ id: 5 };
-// interface Entity {
-//     id: number;
-//     parent: number;
-// }
-
-// interface Enemy {
-//     health: number;
-// }
-
-// let jug = {
-//     id: 1,
-//     parent: 0,
-//     baseName: "jug",
-//     fluidContainer: true,
-// };
-
-// let goblin = {
-//     id: 2,
-//     parent: 0,
-//     baseName: "goblin",
-//     health: 5,
-// };
-
-// let goblinJug = {
-//     id: 3,
-//     parent: 0,
-//     baseName: "goblinJug",
-//     health: 6,
-//     fluidContainer: true,
-// };
-
-/// game logic that figures out the IDs [2, 3], for each call this function:
-
-// function doSomethingToEnemy(id: number) {
-//     let enemy: Enemy = game.getEntityById(id);
-//     enemy.health += 1;
-// }
-
-// TypeScript is structurally typed - so all these pass as entity
-// doSomethingOnEntity(goblinJug);

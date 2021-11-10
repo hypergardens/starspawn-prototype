@@ -1,5 +1,5 @@
 Entity
-    baseName: string 
+    ? name: string 
     ? parent: ID
     ? rel: string
 
@@ -20,6 +20,7 @@ Action
 Intent
     representation: Entity[]
     sequence: Action[]
+
 
 Word < Entity
 

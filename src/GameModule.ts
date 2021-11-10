@@ -5,19 +5,24 @@ import { Entity, Action, Event } from "./Interfaces";
 import { PriorityQueue } from "./PriorityQueue";
 import { Player } from "./PlayerModule";
 import { LogItem } from "./LogItem";
+import { node, RuntimeGlobals } from "webpack";
 
 export class Game {
     id: number;
-    actionId: number;
-    history: Action[];
-    log: any[];
+    logId: number;
+    history: {
+        [key: number]: Action;
+    };
+    log: {
+        [key: number]: LogItem;
+    };
     entities: Entity[];
     words: any;
     intentsReady: boolean;
     queue: any[];
     time: number;
     focus: any;
-    player: any;
+    player: Player;
     playRandomly: boolean;
     actions: any;
     handlers: PriorityQueue;
@@ -28,9 +33,9 @@ export class Game {
         this.entities = [];
         this.words = {};
 
-        this.actionId = 0;
-        this.history = [];
-        this.log = [];
+        this.logId = 0;
+        this.history = {};
+        this.log = {};
 
         this.intentsReady = true;
         this.queue = []; // [Action*]
@@ -79,6 +84,14 @@ export class Game {
     addHandler(value: number, handler: any) {
         this.handlers.enqueue({ value, element: handler });
         return handler;
+    }
+
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    // ENTITY LOOKUP
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+    intentless() {
+        return this.entities.filter((e) => e.actor && e.actor.intent === null);
     }
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -156,12 +169,13 @@ export class Game {
     }
 
     emitEvent(data: Event) {
+        let responses = [];
         for (let handler of this.handlers.asArray()) {
             if (handler[`on_${data.type}`]) {
-                console.log({ data });
-                handler[`on_${data.type}`](data);
+                responses.push(handler[`on_${data.type}`](data));
             }
         }
+        return responses;
     }
 
     queueEvent(data: Event) {
@@ -169,108 +183,148 @@ export class Game {
     }
 
     // called when action is first started
-    processAction(action: Action) {
+    processAction(action: Action, actor: Entity) {
         if (action.maxDuration === undefined) {
             action.maxDuration = action.duration || 0;
-            this.actionId += 1;
-            action.id = this.actionId;
+            this.logId += 1;
 
-            let logItem = {
-                id: action.id,
-            };
+            // set properties and insert to history
+            action.id = this.logId;
+            this.history[action.id] = action;
+            action.actor = actor.id;
 
-            this.history.push(action);
-            this.log.push(logItem);
+            // update logItem
+            this.updateLogItem(action.id);
         }
 
         return action;
     }
 
-    updateLog() {
-        for (let i = 0; i < this.log.length; i++) {
-            let logItem = this.log[i];
-            let logId = logItem.id;
-            for (let hc = 0; hc < this.history.length; hc++) {
-                let action = this.history[hc];
-                let actionId = action.id;
-                // match log item to action
-                if (logId === actionId) {
-                    if (action.duration && action.duration >= 0) {
-                        logItem.progressBar = `[${
-                            "=".repeat(action.maxDuration - action.duration) +
-                            "-".repeat(action.duration)
-                        }]`;
-                        logItem.sticky = true;
-                    } else {
-                        if (action.maxDuration > 0) {
-                            logItem.progressBar = `[${"=".repeat(
-                                action.maxDuration
-                            )}]`;
-                        }
-                        logItem.sticky = false;
-                    }
+    updateLogItem(logId: number) {
+        let playerId = this.entities.filter((e) => e.player)[0].id;
+        // if no action at id, leave alone
+        if (!this.history[logId]) {
+            return;
+        } else {
+            // no log, has action
+            let action = this.history[logId];
+            // compute sticky and progressBar
+            let sticky: boolean, progressBar: string;
+            if (action.duration && action.duration >= 0) {
+                progressBar = `[${
+                    "=".repeat(action.maxDuration - action.duration) +
+                    "-".repeat(action.duration)
+                }] ${action.processText ? action.processText : ""}`;
+                sticky = true;
+            } else {
+                if (action.maxDuration > 0) {
+                    progressBar = `[${"=".repeat(action.maxDuration)}]`;
+                } else {
+                    progressBar = ``;
                 }
+                sticky = false;
             }
-        }
-        this.log.sort((a, b) => (a.sticky && !b.sticky ? 1 : 0));
 
-        // update UI
+            this.log[logId] = {
+                id: logId,
+                text: action.processText ? action.processText : "",
+                sticky: sticky,
+                progressBar: progressBar,
+                alignLeft: playerId === action.actor,
+            };
+            console.log({ playerId, actorId: action.actor });
+        }
+    }
+
+    updateLog() {
+        console.log({ history: this.history, log: this.log });
+
+        // clear display
         let display = document.getElementById("display");
         display.innerText = "";
-        let i = Math.max(0, this.log.length - 50);
-        for (let logItem of this.log.slice(i)) {
-            if (logItem.text) {
-                display.innerText += "\n" + logItem.text;
-            }
-            if (logItem.progressBar) {
-                display.innerText += "\n" + logItem.progressBar;
+        for (let i = 0; i <= this.logId; i++) {
+            this.updateLogItem(i);
+            // update UI at i
+            if (this.log[i]) {
+                console.log(`i${i} text: ${this.log[i].text}`);
+                let logItem = this.log[i];
+                let node = document.createElement("div");
+                node.id = `logItem${logItem.id}`;
+                node.innerText += "\n text:" + logItem.text;
+                node.innerText += "\n" + logItem.progressBar;
+                node.style.textAlign = logItem.alignLeft ? "left" : "right";
+                display.appendChild(node);
+                display.scrollTop = display.scrollHeight;
             }
         }
-        display.scrollTop = display.scrollHeight;
-        console.log(this.log);
     }
 
-    newLine(text) {
-        this.actionId += 1;
+    newLine(text: string): LogItem {
+        this.logId += 1;
         let logItem = {
             text: `${text}`,
-            id: this.actionId,
+            id: this.logId,
+            alignLeft: true,
+            sticky: false,
+            progressBar: "",
         };
-        this.log.push(logItem);
+        this.log[this.logId] = logItem;
+        return logItem;
     }
 
-    getIntents() {
+    getPlayerIntent() {
+        if (this.player) {
+            if (!this.player.actor.intent) {
+                console.log("no player intent");
+                // lay out options if necessary
+                if (!this.player.picking) {
+                    this.player.picking = true;
+                    this.player.setOptionsUI();
+                }
+                if (this.playRandomly) {
+                    // pick random word and call this function again
+                    setTimeout(() => {
+                        let options = this.player.getNextWords();
+                        // avoid cancelling actions if not on first word
+                        if (this.player.command.length > 0) {
+                            this.player.pickNextWord(
+                                Math.floor(Math.random() * (options.length - 1))
+                            );
+                        } else {
+                            // pick any first word
+                            this.player.pickNextWord(
+                                Math.floor(Math.random() * options.length)
+                            );
+                        }
+                        this.getPlayerIntent();
+                    }, 100);
+                } else {
+                    // hang for manual pick
+                    setTimeout(() => {
+                        this.getPlayerIntent();
+                    }, 100);
+                }
+            } else {
+                // player intent done, move on to NPCs
+                this.getNPCIntents();
+            }
+        }
+    }
+    getNPCIntents() {
+        this.emitEvent({ type: "getIntents" });
+        this.processIntents();
+    }
+    processIntents() {
         // get this tick's Actions {aedpcs} for every entity with intent (null or Intent)
         this.intentsReady = true;
         for (let entity of this.entities.filter((e) => e.actor)) {
+            console.log({ actor: entity.actor });
             let intent = entity.actor.intent;
             // empty intent
             if (!intent) {
                 this.intentsReady = false;
+                throw `entity without intent ${entity.name}`;
                 // hang and reset for player input
-                if (entity.player) {
-                    if (!entity.picking) {
-                        entity.picking = true;
-                        entity.setOptionsUI();
-                    }
-                    setTimeout(() => {
-                        let options = entity.getNextWords();
-                        if (this.playRandomly) {
-                            if (entity.command.length > 0) {
-                                entity.pickNextWord(
-                                    Math.floor(
-                                        Math.random() * (options.length - 1)
-                                    )
-                                );
-                            } else {
-                                entity.pickNextWord(
-                                    Math.floor(Math.random() * options.length)
-                                );
-                            }
-                        }
-                        this.getIntents();
-                    }, 100);
-                }
             } else if (intent && intent.sequence.length > 0) {
                 // extract actions and enqueue them
                 let ticks = 0;
@@ -278,13 +332,16 @@ export class Game {
                 // extract actions until we go over 1 tick
                 while (ticks === 0 && intent.sequence.length > 0) {
                     // process and enqueue action
-                    intent.sequence[0] = this.processAction(intent.sequence[0]);
+                    intent.sequence[0] = this.processAction(
+                        intent.sequence[0],
+                        entity
+                    );
                     let action = intent.sequence[0];
                     this.enqueue(action, false);
 
                     // queue up actions including the first with duration
                     if (action.duration <= 0 || action.duration === undefined) {
-                        // instant action, keep queueSpliceIng
+                        // instant action, keep queueSplicing
                         intent.sequence.splice(0, 1);
                     } else if (action.duration > 0) {
                         // action that will be taken multiple times
@@ -337,13 +394,9 @@ export class Game {
                     // new event to propagate
                     let type = event.type;
                     // send to every handler
-                    let responses = [];
+                    let responses = this.emitEvent(event);
                     console.log({ event, i: this.queueSpliceI });
-                    for (let handler of this.handlers.asArray()) {
-                        if (handler[`on_${type}`]) {
-                            handler[`on_${type}`](event);
-                        }
-                    }
+                    console.log({ responses });
                 }
             }
             // pause: execute the next instantly or with pause
@@ -359,13 +412,13 @@ export class Game {
         } else {
             // loop again
             this.time += 1;
-            this.getIntents();
+            this.getPlayerIntent();
         }
     }
 
     word(text) {
         if (!this.words[text]) {
-            let word = { type: "word", baseName: text };
+            let word = { type: "word", name: text };
             this.words[text] = word;
         }
         return this.words[text];
@@ -388,19 +441,30 @@ export class Game {
         treeNode.innerHTML = `Time: ${hours}:${minutes}:${seconds}:${ticks}\n\n</br>`;
 
         // subtree
-        function indentedSubtree(entity, depth = 0) {
-            if (!entity.baseName || entity.invisible) return null;
-            let healthText =
-                entity.health > 0 ? `[${"#".repeat(entity.health)}]` : "";
+        function indentedSubtree(entity: Entity, depth = 0) {
+            if ((!entity.name && !entity.quality) || entity.invisible)
+                return null;
 
+            // base text and focus
+            let text = "";
             let focusedText =
                 game.player.focus === entity.id ? "(focused)" : "";
+
+            // object or quality
+            if (entity.quality) {
+                text = `Q: ${entity.quality.name} ${entity.quality.value}`;
+            } else if (entity.name) {
+                text = `${entity.name}`;
+            }
+
+            // assemble text chunk
             let textNode = document.createElement("a");
-            // textNode.style.color = "lightgrey";
-            textNode.innerText = `|${"----".repeat(depth)}${
-                entity.baseName
-            } ${healthText}${focusedText}\n`;
+            textNode.innerText = `|${"----".repeat(
+                depth
+            )} ${text} ${focusedText}\n`;
+
             textNode.className = "treeObject";
+
             if (game.getChildren(entity).length > 0) {
                 for (let child of game
                     .getChildren(entity)
@@ -414,7 +478,11 @@ export class Game {
             textNode.addEventListener("click", function (e) {
                 e = <MouseEvent>window.event || e;
                 if (this === e.target) {
-                    game.player.focus = entity.id;
+                    if (game.player.focus === entity.id) {
+                        game.player.focus = null;
+                    } else {
+                        game.player.focus = entity.id;
+                    }
                     game.player.command = [];
                     game.player.setOptionsUI();
                 }

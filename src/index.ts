@@ -2,6 +2,7 @@ import GameModule = require("./GameModule");
 import PlayerModule = require("./PlayerModule");
 import teaRoomMod = require("./modTeaRoom");
 import debugMod = require("./modDebug");
+import fightingMod = require("./modFighting");
 // HACK
 // let newLine = utils.newLine;
 // import { newLine } from "./utils";
@@ -13,16 +14,16 @@ game.player = player;
 
 let debug = false;
 let areaA = game.addEntity({
-    baseName: "room A",
+    name: "room A",
     area: true,
 });
 let areaB = game.addEntity({
-    baseName: "room B",
+    name: "room B",
     area: true,
 });
 
 let areaC = game.addEntity({
-    baseName: "room C",
+    name: "room C",
     area: true,
 });
 
@@ -47,10 +48,16 @@ game.addEntity({
         distance: 4,
     },
 });
-game.addEntity(player, areaA);
 
-teaRoomMod.loadMod(game);
+game.addEntity(player, areaA);
+game.addEntity(
+    { quality: { name: "health", value: 10, pyramid: false } },
+    player,
+    "quality"
+);
+// teaRoomMod.loadMod(game);
 debugMod.loadMod(game);
+fightingMod.loadMod(game);
 
 console.log(game.entities);
 
@@ -73,7 +80,7 @@ document.addEventListener(
 
 player.updateCommandUI();
 game.updateEntityTreeUI();
-game.getIntents();
+game.getPlayerIntent();
 
 console.log({ "all intents": player.getAllIntents() });
 // for (let intent of player.getAllIntents()) {

@@ -32,19 +32,24 @@ body {
 #mainArea {
     /* width: 1200px; */
     margin: auto;
-    padding: 50px;
 }
 
 #leftPane {
-    display: inline-block;
-    width: 64%;
-    vertical-align: top;
+    width: 20%;
 }
 
-#entityTree {
+#centerPane {
+    width: 55%;
+}
+
+#rightPane {
+    width: 20%;
+}
+
+.pane {
     display: inline-block;
-    width: 35%;
     vertical-align: top;
+    outline: var(--colorgray) solid 2px;
 }
 
 #command {

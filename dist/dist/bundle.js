@@ -19,9 +19,9 @@ var Game = /** @class */ (function () {
         this.id = 0;
         this.entities = [];
         this.words = {};
-        this.actionId = 0;
-        this.history = [];
-        this.log = [];
+        this.logId = 0;
+        this.history = {};
+        this.log = {};
         this.intentsReady = true;
         this.queue = []; // [Action*]
         this.queueSpliceI = 0;
@@ -64,6 +64,12 @@ var Game = /** @class */ (function () {
     Game.prototype.addHandler = function (value, handler) {
         this.handlers.enqueue({ value: value, element: handler });
         return handler;
+    };
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    // ENTITY LOOKUP
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    Game.prototype.intentless = function () {
+        return this.entities.filter(function (e) { return e.actor && e.actor.intent === null; });
     };
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     // PARENT
@@ -129,107 +135,154 @@ var Game = /** @class */ (function () {
         }
     };
     Game.prototype.emitEvent = function (data) {
+        var responses = [];
         for (var _i = 0, _a = this.handlers.asArray(); _i < _a.length; _i++) {
             var handler = _a[_i];
             if (handler["on_" + data.type]) {
-                console.log({ data: data });
-                handler["on_" + data.type](data);
+                responses.push(handler["on_" + data.type](data));
             }
         }
+        return responses;
     };
     Game.prototype.queueEvent = function (data) {
         this.enqueue({ events: [data] });
     };
     // called when action is first started
-    Game.prototype.processAction = function (action) {
+    Game.prototype.processAction = function (action, actor) {
         if (action.maxDuration === undefined) {
             action.maxDuration = action.duration || 0;
-            this.actionId += 1;
-            action.id = this.actionId;
-            var logItem = {
-                id: action.id,
-            };
-            this.history.push(action);
-            this.log.push(logItem);
+            this.logId += 1;
+            // set properties and insert to history
+            action.id = this.logId;
+            this.history[action.id] = action;
+            action.actor = actor.id;
+            // update logItem
+            this.updateLogItem(action.id);
         }
         return action;
     };
-    Game.prototype.updateLog = function () {
-        for (var i_1 = 0; i_1 < this.log.length; i_1++) {
-            var logItem = this.log[i_1];
-            var logId = logItem.id;
-            for (var hc = 0; hc < this.history.length; hc++) {
-                var action = this.history[hc];
-                var actionId = action.id;
-                // match log item to action
-                if (logId === actionId) {
-                    if (action.duration && action.duration >= 0) {
-                        logItem.progressBar = "[" + ("=".repeat(action.maxDuration - action.duration) +
-                            "-".repeat(action.duration)) + "]";
-                        logItem.sticky = true;
-                    }
-                    else {
-                        if (action.maxDuration > 0) {
-                            logItem.progressBar = "[" + "=".repeat(action.maxDuration) + "]";
-                        }
-                        logItem.sticky = false;
-                    }
-                }
-            }
+    Game.prototype.updateLogItem = function (logId) {
+        var playerId = this.entities.filter(function (e) { return e.player; })[0].id;
+        // if no action at id, leave alone
+        if (!this.history[logId]) {
+            return;
         }
-        this.log.sort(function (a, b) { return (a.sticky && !b.sticky ? 1 : 0); });
-        // update UI
+        else {
+            // no log, has action
+            var action = this.history[logId];
+            // compute sticky and progressBar
+            var sticky = void 0, progressBar = void 0;
+            if (action.duration && action.duration >= 0) {
+                progressBar = "[" + ("=".repeat(action.maxDuration - action.duration) +
+                    "-".repeat(action.duration)) + "] " + (action.processText ? action.processText : "");
+                sticky = true;
+            }
+            else {
+                if (action.maxDuration > 0) {
+                    progressBar = "[" + "=".repeat(action.maxDuration) + "]";
+                }
+                else {
+                    progressBar = "";
+                }
+                sticky = false;
+            }
+            this.log[logId] = {
+                id: logId,
+                text: action.processText ? action.processText : "",
+                sticky: sticky,
+                progressBar: progressBar,
+                alignLeft: playerId === action.actor,
+            };
+            console.log({ playerId: playerId, actorId: action.actor });
+        }
+    };
+    Game.prototype.updateLog = function () {
+        console.log({ history: this.history, log: this.log });
+        // clear display
         var display = document.getElementById("display");
         display.innerText = "";
-        var i = Math.max(0, this.log.length - 50);
-        for (var _i = 0, _a = this.log.slice(i); _i < _a.length; _i++) {
-            var logItem = _a[_i];
-            if (logItem.text) {
-                display.innerText += "\n" + logItem.text;
-            }
-            if (logItem.progressBar) {
-                display.innerText += "\n" + logItem.progressBar;
+        for (var i = 0; i <= this.logId; i++) {
+            this.updateLogItem(i);
+            // update UI at i
+            if (this.log[i]) {
+                console.log("i" + i + " text: " + this.log[i].text);
+                var logItem = this.log[i];
+                var node_1 = document.createElement("div");
+                node_1.id = "logItem" + logItem.id;
+                node_1.innerText += "\n text:" + logItem.text;
+                node_1.innerText += "\n" + logItem.progressBar;
+                node_1.style.textAlign = logItem.alignLeft ? "left" : "right";
+                display.appendChild(node_1);
+                display.scrollTop = display.scrollHeight;
             }
         }
-        display.scrollTop = display.scrollHeight;
-        console.log(this.log);
     };
     Game.prototype.newLine = function (text) {
-        this.actionId += 1;
+        this.logId += 1;
         var logItem = {
             text: "" + text,
-            id: this.actionId,
+            id: this.logId,
+            alignLeft: true,
+            sticky: false,
+            progressBar: "",
         };
-        this.log.push(logItem);
+        this.log[this.logId] = logItem;
+        return logItem;
     };
-    Game.prototype.getIntents = function () {
+    Game.prototype.getPlayerIntent = function () {
         var _this = this;
+        if (this.player) {
+            if (!this.player.actor.intent) {
+                console.log("no player intent");
+                // lay out options if necessary
+                if (!this.player.picking) {
+                    this.player.picking = true;
+                    this.player.setOptionsUI();
+                }
+                if (this.playRandomly) {
+                    // pick random word and call this function again
+                    setTimeout(function () {
+                        var options = _this.player.getNextWords();
+                        // avoid cancelling actions if not on first word
+                        if (_this.player.command.length > 0) {
+                            _this.player.pickNextWord(Math.floor(Math.random() * (options.length - 1)));
+                        }
+                        else {
+                            // pick any first word
+                            _this.player.pickNextWord(Math.floor(Math.random() * options.length));
+                        }
+                        _this.getPlayerIntent();
+                    }, 100);
+                }
+                else {
+                    // hang for manual pick
+                    setTimeout(function () {
+                        _this.getPlayerIntent();
+                    }, 100);
+                }
+            }
+            else {
+                // player intent done, move on to NPCs
+                this.getNPCIntents();
+            }
+        }
+    };
+    Game.prototype.getNPCIntents = function () {
+        this.emitEvent({ type: "getIntents" });
+        this.processIntents();
+    };
+    Game.prototype.processIntents = function () {
         // get this tick's Actions {aedpcs} for every entity with intent (null or Intent)
         this.intentsReady = true;
-        var _loop_1 = function (entity) {
+        for (var _i = 0, _a = this.entities.filter(function (e) { return e.actor; }); _i < _a.length; _i++) {
+            var entity = _a[_i];
+            console.log({ actor: entity.actor });
             var intent = entity.actor.intent;
             // empty intent
             if (!intent) {
-                this_1.intentsReady = false;
+                this.intentsReady = false;
+                throw "entity without intent " + entity.name;
                 // hang and reset for player input
-                if (entity.player) {
-                    if (!entity.picking) {
-                        entity.picking = true;
-                        entity.setOptionsUI();
-                    }
-                    setTimeout(function () {
-                        var options = entity.getNextWords();
-                        if (_this.playRandomly) {
-                            if (entity.command.length > 0) {
-                                entity.pickNextWord(Math.floor(Math.random() * (options.length - 1)));
-                            }
-                            else {
-                                entity.pickNextWord(Math.floor(Math.random() * options.length));
-                            }
-                        }
-                        _this.getIntents();
-                    }, 100);
-                }
             }
             else if (intent && intent.sequence.length > 0) {
                 // extract actions and enqueue them
@@ -237,12 +290,12 @@ var Game = /** @class */ (function () {
                 // extract actions until we go over 1 tick
                 while (ticks === 0 && intent.sequence.length > 0) {
                     // process and enqueue action
-                    intent.sequence[0] = this_1.processAction(intent.sequence[0]);
+                    intent.sequence[0] = this.processAction(intent.sequence[0], entity);
                     var action = intent.sequence[0];
-                    this_1.enqueue(action, false);
+                    this.enqueue(action, false);
                     // queue up actions including the first with duration
                     if (action.duration <= 0 || action.duration === undefined) {
-                        // instant action, keep queueSpliceIng
+                        // instant action, keep queueSplicing
                         intent.sequence.splice(0, 1);
                     }
                     else if (action.duration > 0) {
@@ -263,11 +316,6 @@ var Game = /** @class */ (function () {
                     entity.actor.intent = null;
                 }
             }
-        };
-        var this_1 = this;
-        for (var _i = 0, _a = this.entities.filter(function (e) { return e.actor; }); _i < _a.length; _i++) {
-            var entity = _a[_i];
-            _loop_1(entity);
         }
         // when ready, propagate events
         if (this.intentsReady) {
@@ -305,14 +353,9 @@ var Game = /** @class */ (function () {
                     // new event to propagate
                     var type = event_1.type;
                     // send to every handler
-                    var responses = [];
+                    var responses = this.emitEvent(event_1);
                     console.log({ event: event_1, i: this.queueSpliceI });
-                    for (var _b = 0, _c = this.handlers.asArray(); _b < _c.length; _b++) {
-                        var handler = _c[_b];
-                        if (handler["on_" + type]) {
-                            handler["on_" + type](event_1);
-                        }
-                    }
+                    console.log({ responses: responses });
                 }
             }
             // pause: execute the next instantly or with pause
@@ -329,12 +372,12 @@ var Game = /** @class */ (function () {
         else {
             // loop again
             this.time += 1;
-            this.getIntents();
+            this.getPlayerIntent();
         }
     };
     Game.prototype.word = function (text) {
         if (!this.words[text]) {
-            var word = { type: "word", baseName: text };
+            var word = { type: "word", name: text };
             this.words[text] = word;
         }
         return this.words[text];
@@ -357,13 +400,21 @@ var Game = /** @class */ (function () {
         // subtree
         function indentedSubtree(entity, depth) {
             if (depth === void 0) { depth = 0; }
-            if (!entity.baseName || entity.invisible)
+            if ((!entity.name && !entity.quality) || entity.invisible)
                 return null;
-            var healthText = entity.health > 0 ? "[" + "#".repeat(entity.health) + "]" : "";
+            // base text and focus
+            var text = "";
             var focusedText = game.player.focus === entity.id ? "(focused)" : "";
+            // object or quality
+            if (entity.quality) {
+                text = "Q: " + entity.quality.name + " " + entity.quality.value;
+            }
+            else if (entity.name) {
+                text = "" + entity.name;
+            }
+            // assemble text chunk
             var textNode = document.createElement("a");
-            // textNode.style.color = "lightgrey";
-            textNode.innerText = "|" + "----".repeat(depth) + entity.baseName + " " + healthText + focusedText + "\n";
+            textNode.innerText = "|" + "----".repeat(depth) + " " + text + " " + focusedText + "\n";
             textNode.className = "treeObject";
             if (game.getChildren(entity).length > 0) {
                 for (var _i = 0, _a = game
@@ -379,7 +430,12 @@ var Game = /** @class */ (function () {
             textNode.addEventListener("click", function (e) {
                 e = window.event || e;
                 if (this === e.target) {
-                    game.player.focus = entity.id;
+                    if (game.player.focus === entity.id) {
+                        game.player.focus = null;
+                    }
+                    else {
+                        game.player.focus = entity.id;
+                    }
                     game.player.command = [];
                     game.player.setOptionsUI();
                 }
@@ -465,7 +521,7 @@ Object.defineProperty(exports, "__esModule", ({ value: true }));
 var Player = /** @class */ (function () {
     function Player() {
         this.parent = undefined;
-        this.baseName = "player";
+        this.name = "player";
         this.player = true;
         this.actor = {
             intent: null,
@@ -522,12 +578,12 @@ var Player = /** @class */ (function () {
     Player.prototype.getNextWords = function () {
         var options = [];
         var validIntents = this.getValidIntents();
-        // console.log(`${validIntents.length} valid commands at command ${this.command.map(w => w.baseName)}`)
+        // console.log(`${validIntents.length} valid commands at command ${this.command.map(w => w.name)}`)
         for (var _i = 0, validIntents_1 = validIntents; _i < validIntents_1.length; _i++) {
             var intent = validIntents_1[_i];
             // if the intent is the same length as the command, it can be confirmed
             if (intent.representation.length == this.command.length) {
-                options.push({ baseName: "> confirm <", type: "confirm" });
+                options.push({ name: "> confirm <", type: "confirm" });
             }
             else {
                 var newOption = intent.representation[this.command.length];
@@ -544,7 +600,7 @@ var Player = /** @class */ (function () {
             }
         }
         if (this.command.length > 0) {
-            options.push({ baseName: "> cancel <", type: "cancel" });
+            options.push({ name: "> cancel <", type: "cancel" });
         }
         return options;
     };
@@ -600,7 +656,7 @@ var Player = /** @class */ (function () {
     };
     Player.prototype.updateCommandUI = function () {
         document.getElementById("command").innerHTML =
-            ">" + this.command.map(function (e) { return e.baseName; }).join(" ");
+            ">" + this.command.map(function (e) { return e.name; }).join(" ");
     };
     Player.prototype.clearOptionsUI = function () {
         document.getElementById("options").innerHTML = "";
@@ -614,8 +670,8 @@ var Player = /** @class */ (function () {
         var options = this.getNextWords();
         var keys = "abcdefghijklmnopqrstuwxyz".split("");
         var _loop_1 = function (i) {
-            var optionText = options[i].baseName;
-            // create a span with the optionText baseName
+            var optionText = options[i].name;
+            // create a span with the optionText name
             shortcutNode = document.createElement("a");
             // shortcutNode.style.color = "lightgrey";
             shortcutNode.innerText = keys[i] + ") ";
@@ -721,7 +777,7 @@ function loadMod(game) {
         var destination = game.getById(path.path.to);
         var actor = game.getById(actorId);
         if (actor.player) {
-            game.newLine("You go to " + destination.baseName);
+            game.newLine("You go to " + destination.name);
         }
         game.queueEvent({
             type: "traverse",
@@ -752,19 +808,19 @@ function loadMod(game) {
     //     intents: () => {
     //         let intents = [];
     //         let durations = [
-    //             { baseName: "1 tick", dur: 1 },
-    //             { baseName: "3 ticks", dur: 3 },
-    //             { baseName: "6 ticks", dur: 6 },
-    //             // { baseName: "12 ticks", dur: 12 },
-    //             { baseName: "1 minute", dur: timing.m(1) },
-    //             { baseName: "1 hour", dur: timing.h(1) },
-    //             { baseName: "1 day", dur: timing.h(24) },
+    //             { name: "1 tick", dur: 1 },
+    //             { name: "3 ticks", dur: 3 },
+    //             { name: "6 ticks", dur: 6 },
+    //             // { name: "12 ticks", dur: 12 },
+    //             { name: "1 minute", dur: timing.m(1) },
+    //             { name: "1 hour", dur: timing.h(1) },
+    //             { name: "1 day", dur: timing.h(24) },
     //         ];
     //         for (let duration of durations) {
     //             let intent = {
     //                 representation: [
     //                     game.word("wait"),
-    //                     game.word(duration.baseName),
+    //                     game.word(duration.name),
     //                 ],
     //                 sequence: [
     //                     createNewLineAction(`You wait ${duration.dur} ticks.`),
@@ -923,11 +979,11 @@ module.exports = { loadMod: loadMod };
 
 /***/ }),
 
-/***/ "./src/modTeaRoom.ts":
-/*!***************************!*\
-  !*** ./src/modTeaRoom.ts ***!
-  \***************************/
-/***/ (function(module, exports, __webpack_require__) {
+/***/ "./src/modFighting.ts":
+/*!****************************!*\
+  !*** ./src/modFighting.ts ***!
+  \****************************/
+/***/ (function(__unused_webpack_module, exports) {
 
 
 var __spreadArrays = (this && this.__spreadArrays) || function () {
@@ -938,9 +994,12 @@ var __spreadArrays = (this && this.__spreadArrays) || function () {
     return r;
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-var timing = __webpack_require__(/*! ./timing */ "./src/timing.ts");
+function makeDevil() {
+    return { name: "devil", actor: { intent: null } };
+}
 function loadMod(game) {
     var player = game.entities.filter(function (e) { return e.player; })[0];
+    var area = game.entities.filter(function (e) { return e.area; })[0];
     game.actions.newLine = function () {
         var _a;
         var args = [];
@@ -949,702 +1008,52 @@ function loadMod(game) {
         }
         return (_a = game.newLine).call.apply(_a, __spreadArrays([game], args));
     };
-    // let newLine = game.newLine;
-    game.actions.wait = function (ticks) {
-        if (ticks === void 0) { ticks = 0; }
-        // game.newLine(`Still waiting... of ${ticks}`);
-    };
-    function createNewLineAction(text) {
-        return {
-            func: "newLine",
-            args: [text],
-        };
-    }
-    function createWaitAction(ticks, processText) {
-        if (processText === void 0) { processText = "Waiting..."; }
-        return {
-            func: "wait",
-            args: [ticks],
-            duration: ticks,
-            pause: timing.mpt / Math.pow(ticks, 1),
-            processText: processText,
-        };
-    }
-    // wait various durations
-    player.patterns.push({
-        intents: function () {
-            var intents = [];
-            var durations = [
-                { baseName: "1 tick", dur: 1 },
-                { baseName: "3 ticks", dur: 3 },
-                { baseName: "6 ticks", dur: 6 },
-                { baseName: "12 ticks", dur: 12 },
-                { baseName: "60 ticks", dur: 60 },
-            ];
-            for (var _i = 0, durations_1 = durations; _i < durations_1.length; _i++) {
-                var duration = durations_1[_i];
-                var intent = {
-                    representation: [
-                        game.word("wait"),
-                        game.word(duration.baseName),
-                    ],
-                    sequence: [
-                        createNewLineAction("You wait " + duration.dur + " ticks."),
-                        createWaitAction(duration.dur),
-                    ],
-                };
-                intents.push(intent);
-            }
-            return intents;
-        },
-    });
-    game.actions.fillFrom = function (fluidSourceId, fluidContainerId) {
-        var fluidSource = game.getById(fluidSourceId);
-        var fluidContainer = game.getById(fluidContainerId);
-        var fluid = game.addEntity({
-            baseName: fluidSource.fluidSource,
-            fluid: true,
-            temperature: 20,
-        }, fluidContainer);
-        game.newLine("You fill up the " + fluidContainer.baseName + " from the " + fluidSource.baseName + " with " + fluid.baseName);
-    };
-    function fluidsIn(fluidContainer) {
-        var fluidChildren = game
-            .getChildren(fluidContainer)
-            .filter(function (e) { return e.fluid; });
-        return fluidChildren.length > 0;
-    }
-    // fill container from fluidSource
-    player.addPattern({
-        intents: function () {
-            var intents = [];
-            for (var _i = 0, _a = game.entities.filter(function (e) { return e.fluidSource; }); _i < _a.length; _i++) {
-                var fluidSource = _a[_i];
-                for (var _b = 0, _c = game.entities.filter(function (e) { return e.fluidContainer && !fluidsIn(e); }); _b < _c.length; _b++) {
-                    var nonEmptyFluidContainer = _c[_b];
-                    intents.push({
-                        representation: [
-                            game.word("fill"),
-                            nonEmptyFluidContainer,
-                            game.word("from"),
-                            fluidSource,
-                        ],
-                        sequence: [
-                            createWaitAction(3, "Filling"),
-                            {
-                                func: "fillFrom",
-                                args: [
-                                    fluidSource.id,
-                                    nonEmptyFluidContainer.id,
-                                ],
-                                duration: 1,
-                            },
-                            createWaitAction(3, "Recovering"),
-                        ],
-                    });
-                    // throw "HALT"
-                }
-            }
-            return intents;
-        },
-    });
-    game.actions.emptyContainer = function (containerId) {
-        var container = game.getById(containerId);
-        var containerParent = game.getParent(container);
-        game.newLine("You empty the " + container.baseName + " on the " + containerParent.baseName + ".");
-        for (var _i = 0, _a = game.getChildrenById(containerId); _i < _a.length; _i++) {
-            var child = _a[_i];
-            if (child.fluid) {
-                game.deleteById(child.id);
-            }
-            else {
-                game.setParent(containerParent, child);
-            }
-        }
-    };
-    player.addPattern({
-        // empty container
-        intents: function () {
-            var intents = [];
-            // nonempty fluid containers
-            for (var _i = 0, _a = game.entities.filter(function (e) { return e.fluidContainer && game.getChildren(e).length !== 0; }); _i < _a.length; _i++) {
-                var nonEmptyFluidContainer = _a[_i];
-                intents.push({
-                    representation: [
-                        game.word("empty"),
-                        nonEmptyFluidContainer,
-                    ],
-                    sequence: [
-                        createWaitAction(1),
-                        {
-                            func: "emptyContainer",
-                            args: [nonEmptyFluidContainer.id],
-                        },
-                        createWaitAction(1),
-                    ],
-                });
-            }
-            return intents;
-        },
-    });
-    game.actions.pourXintoY = function (sourceId, destinationId) {
-        var source = game.getById(sourceId);
-        var destination = game.getById(destinationId);
-        for (var _i = 0, _a = game.getChildren(source); _i < _a.length; _i++) {
-            var child = _a[_i];
-            game.newLine("You pour the " + child.baseName + " from the " + source.baseName + " into the " + destination.baseName + ".");
-            game.setParent(destination, child);
-        }
-    };
-    player.addPattern({
-        // pour X into Y
-        intents: function () {
-            var intents = [];
-            var isNonEmptyFluidContainer = function (e) {
-                return e.fluidContainer && game.getChildren(e).length !== 0;
-            };
-            var isEmptyContainer = function (e) { return e.fluidContainer && !fluidsIn(e); };
-            for (var _i = 0, _a = game.entities.filter(isNonEmptyFluidContainer); _i < _a.length; _i++) {
-                var sourceContainer = _a[_i];
-                for (var _b = 0, _c = game.entities.filter(isEmptyContainer); _b < _c.length; _b++) {
-                    var destinationContainer = _c[_b];
-                    intents.push({
-                        representation: [
-                            game.word("pour"),
-                            sourceContainer,
-                            game.word("into"),
-                            destinationContainer,
-                        ],
-                        sequence: [
-                            {
-                                func: "pourXintoY",
-                                args: [
-                                    sourceContainer.id,
-                                    destinationContainer.id,
-                                ],
-                            },
-                        ],
-                    });
-                }
-            }
-            return intents;
-        },
-    });
-    game.actions.setParentById = function (parentId, childId, rel) {
-        return game.setParentById(parentId, childId, rel);
-    };
-    player.addPattern({
-        intents: function () {
-            var intents = [];
-            for (var _i = 0, _a = game.entities.filter(function (e) { return e.item && game.isAccessible(e); }); _i < _a.length; _i++) {
-                var entity = _a[_i];
-                for (var _b = 0, _c = game.entities.filter(function (e) { return e.surface; }); _b < _c.length; _b++) {
-                    var surface = _c[_b];
-                    intents.push({
-                        representation: [
-                            game.word("put"),
-                            entity,
-                            game.word("on"),
-                            surface,
-                        ],
-                        sequence: [
-                            createNewLineAction("You put the " + entity.baseName + " on the " + surface.baseName),
-                            {
-                                func: "setParentById",
-                                args: [surface.id, entity.id, "on"],
-                            },
-                        ],
-                    });
-                }
-            }
-            return intents;
-        },
-    });
-    player.addPattern({
-        intents: function () {
-            var intents = [];
-            for (var _i = 0, _a = game.entities.filter(function (e) { return e.infusable && game.isAccessible(e); }); _i < _a.length; _i++) {
-                var infusable = _a[_i];
-                for (var _b = 0, _c = game.entities.filter(function (e) { return e.fluidContainer; }); _b < _c.length; _b++) {
-                    var fluidContainer = _c[_b];
-                    intents.push({
-                        representation: [
-                            game.word("put"),
-                            infusable,
-                            game.word("in"),
-                            fluidContainer,
-                        ],
-                        sequence: [
-                            {
-                                func: "setParentById",
-                                args: [fluidContainer.id, infusable.id, "in"],
-                            },
-                            createWaitAction(3),
-                        ],
-                    });
-                }
-            }
-            return intents;
-        },
-    });
-    game.actions.switchActive = function (switchableId) {
-        var switchable = game.getById(switchableId);
-        switchable.active = !switchable.active;
-    };
-    player.addPattern({
-        intents: function () {
-            var intents = [];
-            for (var _i = 0, _a = game.entities.filter(function (e) { return e.active !== undefined && e.active === false; }); _i < _a.length; _i++) {
-                var entity = _a[_i];
-                intents.push({
-                    representation: [game.word("turn on"), entity],
-                    sequence: [
-                        createNewLineAction("You turn on the " + entity.baseName),
-                        {
-                            func: "switchActive",
-                            args: [entity.id],
-                        },
-                    ],
-                });
-            }
-            return intents;
-        },
-    });
-    player.addPattern({
-        intents: function () {
-            var intents = [];
-            for (var _i = 0, _a = game.entities.filter(function (e) { return e.active !== undefined && e.active === true; }); _i < _a.length; _i++) {
-                var entity = _a[_i];
-                intents.push({
-                    representation: [game.word("turn off"), entity],
-                    sequence: [
-                        createNewLineAction("You turn off the " + entity.baseName),
-                        {
-                            func: "switchActive",
-                            args: [entity.id],
-                        },
-                    ],
-                });
-            }
-            return intents;
-        },
-    });
-    game.actions.tryUnlock = function (chestId, trialPassword) {
-        var chest = game.getById(chestId);
-        if (trialPassword === chest.locked.password) {
-            chest.locked.isLocked = false;
-            game.newLine("The locks click open.");
-        }
-        else {
-            game.newLine("Incorrect password.");
-        }
-    };
-    player.addPattern({
-        intents: function () {
-            var intents = [];
-            for (var _i = 0, _a = game.entities.filter(function (e) { return e.locked && game.isAccessible(e); }); _i < _a.length; _i++) {
-                var chest = _a[_i];
-                for (var i0 = 0; i0 < 10; i0++) {
-                    // for (let i1 = 0; i1 < 10; i1++) {
-                    // for (let i2 = 0; i2 < 10; i2++) {
-                    // the sequence
-                    intents.push({
-                        representation: [
-                            game.word("unlock"),
-                            chest,
-                            game.word(String(i0)),
-                        ],
-                        // representation: [game.word(`unlock`), chest, game.word(String(i0)), game.word(String(i1)), game.word(String(i2))],
-                        sequence: [
-                            {
-                                func: "tryUnlock",
-                                args: [chest.id, "" + i0],
-                            },
-                        ],
-                    });
-                    // }
-                    // }
-                }
-            }
-            return intents;
-        },
-    });
-    player.addPattern({
-        intents: function () {
-            var intents = [];
-            for (var _i = 0, _a = game.entities.filter(function (e) { return e.readable; }); _i < _a.length; _i++) {
-                var entity = _a[_i];
-                // the sequence
-                intents.push({
-                    representation: [game.word("read"), entity],
-                    sequence: [
-                        createNewLineAction("You read the note..."),
-                        createNewLineAction("" + entity.readable.message),
-                    ],
-                });
-            }
-            return intents;
-        },
-    });
-    game.actions.tryOpen = function (entityId) {
-        var entity = game.getById(entityId);
-        if (entity.locked && entity.locked.isLocked) {
-            game.newLine("The " + entity.baseName + " seems to be locked...");
-        }
-        else if (entity.closed === true) {
-            entity.closed = false;
-            game.newLine("You open the " + entity.baseName);
-            game.newLine("It contains: " + game
-                .getChildren(entity)
-                .map(function (e) { return e.baseName; })
-                .join(","));
-        }
-    };
-    player.addPattern({
-        intents: function () {
-            var intents = [];
-            for (var _i = 0, _a = game.entities.filter(function (e) { return e.closed && game.isAccessible(e); }); _i < _a.length; _i++) {
-                var entity = _a[_i];
-                intents.push({
-                    representation: [game.word("open"), entity],
-                    sequence: [
-                        {
-                            func: "tryOpen",
-                            args: [entity.id],
-                        },
-                    ],
-                });
-            }
-            return intents;
-        },
-    });
-    game.actions.punch = function (attackerId, targetId) {
-        var attacker = game.getById(attackerId);
-        var target = game.getById(targetId);
-        var sounds = ["POW!", "Bam!", "Boom!", "Zock!"];
-        game.newLine("You punch the " + target.baseName + "! " + sounds[Math.floor(Math.random() * sounds.length)]);
-        if (target.health < 5) {
-            game.newLine("Some fluff flies out of the ruptures. 1 damage!");
-            target.health -= 1;
-            game.queueEvent({
-                type: "damageDealt",
-                from: attacker,
-                to: target,
-            });
-        }
-    };
-    player.addPattern({
-        intents: function () {
-            var intents = [];
-            for (var _i = 0, _a = game.entities.filter(function (e) { return e.health > 0; }); _i < _a.length; _i++) {
-                var entity = _a[_i];
-                intents.push({
-                    representation: [
-                        game.word("attack"),
-                        entity,
-                        game.word("with fists"),
-                    ],
-                    sequence: [
-                        createWaitAction(5),
-                        {
-                            func: "punch",
-                            args: [player.id, entity.id],
-                        },
-                        createWaitAction(2),
-                        {
-                            func: "punch",
-                            args: [player.id, entity.id],
-                        },
-                        createWaitAction(2),
-                        {
-                            func: "punch",
-                            args: [player.id, entity.id],
-                        },
-                        createWaitAction(2),
-                    ],
-                });
-            }
-            return intents;
-        },
-    });
-    game.actions.sipFrom = function (containerId) {
-        var container = game.getById(containerId);
-        for (var _i = 0, _a = game.getChildren(container).filter(function (e) { return e.fluid; }); _i < _a.length; _i++) {
-            var fluid = _a[_i];
-            if (fluid.turboTea) {
-                game.newLine("You feel like a 400 IQ, cupboard-opening, killing machine! In fact, you feel so good you feel like giving Gardens some feedback on their game!");
-            }
-            else if (fluid.tea) {
-                game.newLine("It's not too bad. It's... fine.");
-            }
-            else {
-                game.newLine("It's important to stay hydrated, I guess.");
-            }
-        }
-    };
-    player.addPattern({
-        intents: function () {
-            var intents = [];
-            for (var _i = 0, _a = game.entities.filter(function (e) {
-                return fluidsIn(e);
-            }); _i < _a.length; _i++) {
-                var nonEmptyFluidContainer = _a[_i];
-                intents.push({
-                    representation: [
-                        game.word("sip from"),
-                        nonEmptyFluidContainer,
-                    ],
-                    sequence: [
-                        createNewLineAction("You sip from the " + nonEmptyFluidContainer.baseName + "."),
-                        createWaitAction(20),
-                        {
-                            func: "sipFrom",
-                            args: [nonEmptyFluidContainer.id],
-                        },
-                    ],
-                });
-            }
-            return intents;
-        },
-    });
-    game.actions.readyClaws = function (targetId) {
-        var target = game.getById(targetId);
-        if (target.health === 5)
-            game.newLine("You let out a piercing shriek as you ready your razor-sharp, glassy claws!");
-        else
-            game.newLine("You ready your claws again!");
-    };
-    game.actions.claw = function (attackerId, targetId) {
-        var attacker = game.getById(attackerId);
-        var target = game.getById(targetId);
-        game.newLine("You tear out the " + target.baseName + "'s insides for 2 damage!");
-        target.health -= 2;
-        game.queueEvent({
-            type: "damageDealt",
-            from: attacker,
-            to: target,
-            amount: 2,
-        });
-    };
-    player.addPattern({
-        intents: function () {
-            var intents = [];
-            for (var _i = 0, _a = game.entities.filter(function (e) { return e.health > 0; }); _i < _a.length; _i++) {
-                var target = _a[_i];
-                intents.push({
-                    representation: [
-                        game.word("attack"),
-                        target,
-                        game.word("with claws"),
-                    ],
-                    sequence: [
-                        { func: "readyClaws", args: [target.id] },
-                        createWaitAction(10),
-                        { func: "claw", args: [player.id, target.id] },
-                    ],
-                });
-            }
-            return intents;
-        },
-    });
+    console.log("loading mod fight");
+    var devil = game.addEntity(makeDevil(), area);
+    game.addEntity({ quality: { name: "health", value: 10, pyramid: false } }, devil, "quality");
+    // devils with no intent will do a 6-tick dance
     game.addHandler(0, {
-        on_damageDealt: function (data) {
-            game.newLine("Damage dealt by " + data.from.baseName);
-            if (data.to.health <= 0 && !data.to.dead) {
-                data.to.dead = true;
-                game.newLine("You have defeated your first enemy, a vile " + data.to.baseName + ". It drops a teabag!");
-                data.to.baseName = "dead " + data.to.baseName;
-                data.health = undefined;
-                game.addEntity({
-                    baseName: "VICTORIOUS teabag",
-                    item: true,
-                    infusable: {
-                        flavour: "VICTORY",
-                    },
-                }, game.getParent(data.to));
-            }
-        },
-    });
-    game.addHandler(0, {
-        on_tick: function (data) {
-            var _loop_1 = function (stove_1) {
-                if (stove_1.active) {
-                    stove_1.ctr += 1;
-                    // put out a message regularly
-                    if (stove_1.ctr >= 2) {
-                        stove_1.ctr = 0;
-                        game.newLine("The stove's flame burns a warm orange.");
-                    }
-                    var _loop_2 = function (containerOnStove) {
-                        // game.newLine(
-                        //     `The stove heats up the ${containerOnStove.baseName}`
-                        // );
-                        for (var _i = 0, _a = game.entities.filter(function (fluid) {
-                            return fluid.fluid &&
-                                game.isParent(containerOnStove, fluid);
-                        }); _i < _a.length; _i++) {
-                            var fluid = _a[_i];
-                            // game.newLine(
-                            //     `The stove heats up the ${fluid.baseName} in the ${containerOnStove.baseName}`
-                            // );
-                            fluid.temperature += 1;
-                            if (fluid.temperature == 23) {
-                                game.newLine("The " + containerOnStove.baseName + " is filled with hot " + fluid.baseName + "!");
-                            }
-                        }
+        on_getIntents: function () {
+            for (var _i = 0, _a = game
+                .intentless()
+                .filter(function (d) { return d.name === "devil"; }); _i < _a.length; _i++) {
+                var devil_1 = _a[_i];
+                console.log("setting intent for devil");
+                if (Math.random() < 0.5) {
+                    // strike
+                    devil_1.actor.intent = {
+                        sequence: [
+                            {
+                                duration: 4,
+                                processText: "The devil is preparing to strike...",
+                            },
+                            {
+                                func: "newLine",
+                                args: ["The devil strikes you!"],
+                            },
+                        ],
                     };
-                    // heat up fluid inside containers on stove
-                    for (var _i = 0, _a = game.entities.filter(function (containerOnStove) {
-                        return containerOnStove.fluidContainer &&
-                            game.isParent(stove_1, containerOnStove);
-                    }); _i < _a.length; _i++) {
-                        var containerOnStove = _a[_i];
-                        _loop_2(containerOnStove);
-                    }
                 }
-            };
-            for (var _i = 0, _a = game.entities.filter(function (e) { return e.baseName === "stove"; }); _i < _a.length; _i++) {
-                var stove_1 = _a[_i];
-                _loop_1(stove_1);
-            }
-        },
-    });
-    game.addHandler(900, {
-        on_tick: function (data) {
-            var _loop_3 = function (fluidContainer) {
-                for (var _i = 0, _a = game.entities.filter(function (hotFluid) {
-                    return hotFluid.fluid &&
-                        game.isParent(fluidContainer, hotFluid) &&
-                        hotFluid.temperature > 23;
-                }); _i < _a.length; _i++) {
-                    var hotFluid = _a[_i];
-                    var count = 0;
-                    var prefix = "";
-                    // if infusable in container and hot fluid
-                    for (var _b = 0, _c = game.entities.filter(function (e) { return e.infusable && game.isParent(fluidContainer, e); }); _b < _c.length; _b++) {
-                        var infusingTeabag = _c[_b];
-                        count += 1;
-                        prefix += infusingTeabag.infusable.flavour + " ";
-                        game.queueEvent({ type: "teaMade" });
-                        if (count < 3) {
-                            hotFluid.baseName = prefix + " tea";
-                            hotFluid.tea = true;
-                        }
-                        else {
-                            hotFluid.baseName = "TURBO TESTER TEA";
-                            if (!hotFluid.turboTea) {
-                                hotFluid.turboTea = true;
-                                game.newLine("TOTAL VICTORY ACHIEVED! Enjoy your tea!");
-                            }
-                        }
-                        // console.log("hotFluid", hotFluid);
-                    }
+                else {
+                    // dodge
+                    devil_1.actor.intent = {
+                        sequence: [
+                            {
+                                func: "newLine",
+                                args: ["The devil dodges."],
+                            },
+                            {
+                                duration: 6,
+                                processText: "The devil is dodging...",
+                            },
+                        ],
+                    };
                 }
-            };
-            for (var _i = 0, _a = game.entities.filter(function (e) { return e.fluidContainer; }); _i < _a.length; _i++) {
-                var fluidContainer = _a[_i];
-                _loop_3(fluidContainer);
             }
         },
     });
-    game.addEntity({
-        baseName: "winBehaviourState",
-        invisible: true,
-        winBehaviorState: { won: false, uberWon: false },
-    });
-    game.addHandler(1000, {
-        on_teaMade: function (data) {
-            var state = game.entities.filter(function (e) { return e.winBehaviorState; })[0];
-            if (state.winBehaviorState.won === false) {
-                game.newLine("Congratulations, you have made tea! Did you find all three teabags? I wonder what happens if you infuse them all at once...");
-                state.winBehaviorState.won = true;
-            }
-        },
-    });
-    game.addEntity({
-        baseName: "timer",
-        invisible: true,
-        timer: { time: -1 },
-    });
-    var area = game.entities.filter(function (e) { return e.baseName === "room A"; })[0];
-    console.log({ teaModRoom: area });
-    var stove = game.addEntity({
-        baseName: "stove",
-        active: false,
-        surface: true,
-    }, area);
-    var faucet = game.addEntity({
-        baseName: "faucet",
-        fluidSource: "water",
-    }, area);
-    var punchingBag = game.addEntity({
-        baseName: "punching bag",
-        health: 5,
-    }, area);
-    var teaCupboard = game.addEntity({
-        baseName: "tea cupboard",
-        solidContainer: true,
-        closed: true,
-    }, area);
-    var cranberryTeabag = game.addEntity({
-        baseName: "cranberry teabag",
-        item: true,
-        infusable: {
-            flavour: "OBVIOUS",
-        },
-    }, teaCupboard);
-    var table = game.addEntity({
-        baseName: "table",
-        surface: true,
-    }, area);
-    var knife = game.addEntity({
-        baseName: "knife",
-        item: true,
-    }, table, "on");
-    var cup = game.addEntity({
-        baseName: "cup",
-        item: true,
-        fluidContainer: true,
-    }, table, "on");
-    var bowl = game.addEntity({
-        baseName: "bowl",
-        item: true,
-        fluidContainer: true,
-    }, table, "on");
-    var note = game.addEntity({
-        baseName: "super secret note",
-        item: true,
-        readable: {
-            message: "The note says: \"The password is 6...",
-        },
-    }, table, "on");
-    var lockedChest = game.addEntity({
-        baseName: "locked chest",
-        solidContainer: true,
-        closed: true,
-        item: true,
-        locked: { isLocked: true, password: "6" },
-    }, table, "on");
-    var smallerChest = game.addEntity({
-        baseName: "smaller chest",
-        solidContainer: true,
-        closed: true,
-        item: true,
-    }, lockedChest, "in");
-    var evenSmallerChest = game.addEntity({
-        baseName: "even smaller chest",
-        solidContainer: true,
-        closed: true,
-        item: true,
-    }, smallerChest, "in");
-    var secretTeabag = game.addEntity({
-        baseName: "secretive teabag",
-        item: true,
-        infusable: { flavour: "SECRET" },
-    }, smallerChest, "in");
 }
 exports.loadMod = loadMod;
-module.exports = { loadMod: loadMod };
 
 
 /***/ }),
@@ -1715,8 +1124,8 @@ var exports = __webpack_exports__;
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 var GameModule = __webpack_require__(/*! ./GameModule */ "./src/GameModule.ts");
 var PlayerModule = __webpack_require__(/*! ./PlayerModule */ "./src/PlayerModule.ts");
-var teaRoomMod = __webpack_require__(/*! ./modTeaRoom */ "./src/modTeaRoom.ts");
 var debugMod = __webpack_require__(/*! ./modDebug */ "./src/modDebug.ts");
+var fightingMod = __webpack_require__(/*! ./modFighting */ "./src/modFighting.ts");
 // HACK
 // let newLine = utils.newLine;
 // import { newLine } from "./utils";
@@ -1726,15 +1135,15 @@ game.player = player;
 // load mods
 var debug = false;
 var areaA = game.addEntity({
-    baseName: "room A",
+    name: "room A",
     area: true,
 });
 var areaB = game.addEntity({
-    baseName: "room B",
+    name: "room B",
     area: true,
 });
 var areaC = game.addEntity({
-    baseName: "room C",
+    name: "room C",
     area: true,
 });
 game.addEntity({
@@ -1759,8 +1168,10 @@ game.addEntity({
     },
 });
 game.addEntity(player, areaA);
-teaRoomMod.loadMod(game);
+game.addEntity({ quality: { name: "health", value: 10, pyramid: false } }, player, "quality");
+// teaRoomMod.loadMod(game);
 debugMod.loadMod(game);
+fightingMod.loadMod(game);
 console.log(game.entities);
 var keys = "abcdefghijklmnopqrstuwxyz".split("");
 document.addEventListener("keypress", function (event) {
@@ -1776,7 +1187,7 @@ document.addEventListener("keypress", function (event) {
 }, false);
 player.updateCommandUI();
 game.updateEntityTreeUI();
-game.getIntents();
+game.getPlayerIntent();
 console.log({ "all intents": player.getAllIntents() });
 // for (let intent of player.getAllIntents()) {
 //     console.log({ intent })

@@ -39,17 +39,17 @@ export function loadMod(game: GameModule.Game) {
         intents: () => {
             let intents = [];
             let durations = [
-                { baseName: "1 tick", dur: 1 },
-                { baseName: "3 ticks", dur: 3 },
-                { baseName: "6 ticks", dur: 6 },
-                { baseName: "12 ticks", dur: 12 },
-                { baseName: "60 ticks", dur: 60 },
+                { name: "1 tick", dur: 1 },
+                { name: "3 ticks", dur: 3 },
+                { name: "6 ticks", dur: 6 },
+                { name: "12 ticks", dur: 12 },
+                { name: "60 ticks", dur: 60 },
             ];
             for (let duration of durations) {
                 let intent = {
                     representation: [
                         game.word("wait"),
-                        game.word(duration.baseName),
+                        game.word(duration.name),
                     ],
                     sequence: [
                         createNewLineAction(`You wait ${duration.dur} ticks.`),
@@ -68,14 +68,14 @@ export function loadMod(game: GameModule.Game) {
 
         let fluid = game.addEntity(
             {
-                baseName: fluidSource.fluidSource,
+                name: fluidSource.fluidSource,
                 fluid: true,
                 temperature: 20,
             },
             fluidContainer
         );
         game.newLine(
-            `You fill up the ${fluidContainer.baseName} from the ${fluidSource.baseName} with ${fluid.baseName}`
+            `You fill up the ${fluidContainer.name} from the ${fluidSource.name} with ${fluid.name}`
         );
     };
 
@@ -127,7 +127,7 @@ export function loadMod(game: GameModule.Game) {
         let container = game.getById(containerId);
         let containerParent = game.getParent(container);
         game.newLine(
-            `You empty the ${container.baseName} on the ${containerParent.baseName}.`
+            `You empty the ${container.name} on the ${containerParent.name}.`
         );
         for (let child of game.getChildrenById(containerId)) {
             if (child.fluid) {
@@ -171,7 +171,7 @@ export function loadMod(game: GameModule.Game) {
 
         for (let child of game.getChildren(source)) {
             game.newLine(
-                `You pour the ${child.baseName} from the ${source.baseName} into the ${destination.baseName}.`
+                `You pour the ${child.name} from the ${source.name} into the ${destination.name}.`
             );
             game.setParent(destination, child);
         }
@@ -232,7 +232,7 @@ export function loadMod(game: GameModule.Game) {
                         ],
                         sequence: [
                             createNewLineAction(
-                                `You put the ${entity.baseName} on the ${surface.baseName}`
+                                `You put the ${entity.name} on the ${surface.name}`
                             ),
                             {
                                 func: "setParentById",
@@ -290,9 +290,7 @@ export function loadMod(game: GameModule.Game) {
                 intents.push({
                     representation: [game.word("turn on"), entity],
                     sequence: [
-                        createNewLineAction(
-                            `You turn on the ${entity.baseName}`
-                        ),
+                        createNewLineAction(`You turn on the ${entity.name}`),
                         {
                             func: "switchActive",
                             args: [entity.id],
@@ -313,9 +311,7 @@ export function loadMod(game: GameModule.Game) {
                 intents.push({
                     representation: [game.word("turn off"), entity],
                     sequence: [
-                        createNewLineAction(
-                            `You turn off the ${entity.baseName}`
-                        ),
+                        createNewLineAction(`You turn off the ${entity.name}`),
                         {
                             func: "switchActive",
                             args: [entity.id],
@@ -390,14 +386,14 @@ export function loadMod(game: GameModule.Game) {
     game.actions.tryOpen = function (entityId) {
         let entity = game.getById(entityId);
         if (entity.locked && entity.locked.isLocked) {
-            game.newLine(`The ${entity.baseName} seems to be locked...`);
+            game.newLine(`The ${entity.name} seems to be locked...`);
         } else if (entity.closed === true) {
             entity.closed = false;
-            game.newLine(`You open the ${entity.baseName}`);
+            game.newLine(`You open the ${entity.name}`);
             game.newLine(
                 `It contains: ${game
                     .getChildren(entity)
-                    .map((e) => e.baseName)
+                    .map((e) => e.name)
                     .join(",")}`
             );
         }
@@ -427,7 +423,7 @@ export function loadMod(game: GameModule.Game) {
         let target = game.getById(targetId);
         let sounds = ["POW!", "Bam!", "Boom!", "Zock!"];
         game.newLine(
-            `You punch the ${target.baseName}! ${
+            `You punch the ${target.name}! ${
                 sounds[Math.floor(Math.random() * sounds.length)]
             }`
         );
@@ -504,7 +500,7 @@ export function loadMod(game: GameModule.Game) {
                     ],
                     sequence: [
                         createNewLineAction(
-                            `You sip from the ${nonEmptyFluidContainer.baseName}.`
+                            `You sip from the ${nonEmptyFluidContainer.name}.`
                         ),
                         createWaitAction(20),
                         {
@@ -530,9 +526,7 @@ export function loadMod(game: GameModule.Game) {
     game.actions.claw = function (attackerId, targetId) {
         let attacker = game.getById(attackerId);
         let target = game.getById(targetId);
-        game.newLine(
-            `You tear out the ${target.baseName}'s insides for 2 damage!`
-        );
+        game.newLine(`You tear out the ${target.name}'s insides for 2 damage!`);
         target.health -= 2;
         game.queueEvent({
             type: "damageDealt",
@@ -564,18 +558,19 @@ export function loadMod(game: GameModule.Game) {
     });
 
     game.addHandler(0, {
+        name: "punching bag handler",
         on_damageDealt: function (data) {
-            game.newLine(`Damage dealt by ${data.from.baseName}`);
+            game.newLine(`Damage dealt by ${data.from.name}`);
             if (data.to.health <= 0 && !data.to.dead) {
                 data.to.dead = true;
                 game.newLine(
-                    `You have defeated your first enemy, a vile ${data.to.baseName}. It drops a teabag!`
+                    `You have defeated your first enemy, a vile ${data.to.name}. It drops a teabag!`
                 );
-                data.to.baseName = `dead ${data.to.baseName}`;
+                data.to.name = `dead ${data.to.name}`;
                 data.health = undefined;
                 game.addEntity(
                     {
-                        baseName: `VICTORIOUS teabag`,
+                        name: `VICTORIOUS teabag`,
                         item: true,
                         infusable: {
                             flavour: "VICTORY",
@@ -588,10 +583,9 @@ export function loadMod(game: GameModule.Game) {
     });
 
     game.addHandler(0, {
+        name: "heat handler",
         on_tick: function (data) {
-            for (let stove of game.entities.filter(
-                (e) => e.baseName === "stove"
-            )) {
+            for (let stove of game.entities.filter((e) => e.name === "stove")) {
                 if (stove.active) {
                     stove.ctr += 1;
                     // put out a message regularly
@@ -606,7 +600,7 @@ export function loadMod(game: GameModule.Game) {
                             game.isParent(stove, containerOnStove)
                     )) {
                         // game.newLine(
-                        //     `The stove heats up the ${containerOnStove.baseName}`
+                        //     `The stove heats up the ${containerOnStove.name}`
                         // );
                         for (let fluid of game.entities.filter(
                             (fluid) =>
@@ -614,12 +608,12 @@ export function loadMod(game: GameModule.Game) {
                                 game.isParent(containerOnStove, fluid)
                         )) {
                             // game.newLine(
-                            //     `The stove heats up the ${fluid.baseName} in the ${containerOnStove.baseName}`
+                            //     `The stove heats up the ${fluid.name} in the ${containerOnStove.name}`
                             // );
                             fluid.temperature += 1;
                             if (fluid.temperature == 23) {
                                 game.newLine(
-                                    `The ${containerOnStove.baseName} is filled with hot ${fluid.baseName}!`
+                                    `The ${containerOnStove.name} is filled with hot ${fluid.name}!`
                                 );
                             }
                         }
@@ -630,6 +624,7 @@ export function loadMod(game: GameModule.Game) {
     });
 
     game.addHandler(900, {
+        name: "tea handler",
         on_tick: function (data) {
             for (let fluidContainer of game.entities.filter(
                 (e) => e.fluidContainer
@@ -650,10 +645,10 @@ export function loadMod(game: GameModule.Game) {
                         prefix += `${infusingTeabag.infusable.flavour} `;
                         game.queueEvent({ type: "teaMade" });
                         if (count < 3) {
-                            hotFluid.baseName = `${prefix} tea`;
+                            hotFluid.name = `${prefix} tea`;
                             hotFluid.tea = true;
                         } else {
-                            hotFluid.baseName = `TURBO TESTER TEA`;
+                            hotFluid.name = `TURBO TESTER TEA`;
                             if (!hotFluid.turboTea) {
                                 hotFluid.turboTea = true;
                                 game.newLine(
@@ -669,7 +664,7 @@ export function loadMod(game: GameModule.Game) {
     });
 
     game.addEntity({
-        baseName: "winBehaviourState",
+        name: "winBehaviourState",
         invisible: true,
         winBehaviorState: { won: false, uberWon: false },
     });
@@ -687,17 +682,17 @@ export function loadMod(game: GameModule.Game) {
     });
 
     game.addEntity({
-        baseName: "timer",
+        name: "timer",
 
         invisible: true,
         timer: { time: -1 },
     });
 
-    let area = game.entities.filter((e) => e.baseName === "room A")[0];
+    let area = game.entities.filter((e) => e.name === "room A")[0];
     console.log({ teaModRoom: area });
     let stove = game.addEntity(
         {
-            baseName: "stove",
+            name: "stove",
             active: false,
             surface: true,
         },
@@ -706,7 +701,7 @@ export function loadMod(game: GameModule.Game) {
 
     let faucet = game.addEntity(
         {
-            baseName: "faucet",
+            name: "faucet",
             fluidSource: "water",
         },
         area
@@ -714,7 +709,7 @@ export function loadMod(game: GameModule.Game) {
 
     let punchingBag = game.addEntity(
         {
-            baseName: "punching bag",
+            name: "punching bag",
             health: 5,
         },
         area
@@ -722,7 +717,7 @@ export function loadMod(game: GameModule.Game) {
 
     let teaCupboard = game.addEntity(
         {
-            baseName: "tea cupboard",
+            name: "tea cupboard",
             solidContainer: true,
             closed: true,
         },
@@ -731,7 +726,7 @@ export function loadMod(game: GameModule.Game) {
 
     let cranberryTeabag = game.addEntity(
         {
-            baseName: "cranberry teabag",
+            name: "cranberry teabag",
             item: true,
             infusable: {
                 flavour: "OBVIOUS",
@@ -742,7 +737,7 @@ export function loadMod(game: GameModule.Game) {
 
     let table = game.addEntity(
         {
-            baseName: "table",
+            name: "table",
             surface: true,
         },
         area
@@ -750,7 +745,7 @@ export function loadMod(game: GameModule.Game) {
 
     let knife = game.addEntity(
         {
-            baseName: "knife",
+            name: "knife",
             item: true,
         },
         table,
@@ -759,7 +754,7 @@ export function loadMod(game: GameModule.Game) {
 
     let cup = game.addEntity(
         {
-            baseName: "cup",
+            name: "cup",
             item: true,
             fluidContainer: true,
         },
@@ -769,7 +764,7 @@ export function loadMod(game: GameModule.Game) {
 
     let bowl = game.addEntity(
         {
-            baseName: "bowl",
+            name: "bowl",
             item: true,
             fluidContainer: true,
         },
@@ -779,7 +774,7 @@ export function loadMod(game: GameModule.Game) {
 
     let note = game.addEntity(
         {
-            baseName: "super secret note",
+            name: "super secret note",
             item: true,
             readable: {
                 message: `The note says: "The password is 6...`,
@@ -791,7 +786,7 @@ export function loadMod(game: GameModule.Game) {
 
     let lockedChest = game.addEntity(
         {
-            baseName: "locked chest",
+            name: "locked chest",
             solidContainer: true,
             closed: true,
             item: true,
@@ -803,7 +798,7 @@ export function loadMod(game: GameModule.Game) {
 
     let smallerChest = game.addEntity(
         {
-            baseName: "smaller chest",
+            name: "smaller chest",
             solidContainer: true,
             closed: true,
             item: true,
@@ -814,7 +809,7 @@ export function loadMod(game: GameModule.Game) {
 
     let evenSmallerChest = game.addEntity(
         {
-            baseName: "even smaller chest",
+            name: "even smaller chest",
             solidContainer: true,
             closed: true,
             item: true,
@@ -825,7 +820,7 @@ export function loadMod(game: GameModule.Game) {
 
     let secretTeabag = game.addEntity(
         {
-            baseName: "secretive teabag",
+            name: "secretive teabag",
             item: true,
             infusable: { flavour: "SECRET" },
         },

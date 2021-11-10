@@ -1,0 +1,70 @@
+devil
+    dance 33%
+    strike 66%
+
+^Q: health 10
+^Q: power 3
+
+
+player
+    player: true
+
+^move
+    name: "strike"
+
+^Q: health 10
+^Q: power 3
+
+^wieldedItem
+    name: dagger
+
+    ^q: power 5
+
+    ^move
+        name: flurry
+
+    ^move
+        name: parry
+
+func:
+    getTotalQuality(entityId, qualityName)
+        get qualityName
+        acceptableLinks = [activeItem, augment]
+
+        get all addQualityName 
+        for all LINK add getTotalQuality(itemId, qualityName)
+
+        get all mulQualityName
+        for all LINK mul getTotalQuality()
+
+        (qualityName + addQualityName) * mulQualityName
+tick:
+
+-> player -> 1 strike, 1 flurry, 1 parry
+if player has intent
+
+tickBegun
+getIntent
+    -> devil -> 1 dance, 2 strike
+pickIntent
+    -> devil -> "strike" "playerId" -> [{[====] "striking"}, {[=] "strike"}]
+executeNext()*
+    game.actions.strike(devilId, playerId) -> bare-handed claw attack
+        getQualityTotal(devilId, "power") ->
+            newLine("The devil claws at %playerName%")
+            emit {
+                type: attackLaunched,
+                from: devilId,
+                to: playerId,
+                damage: X,
+            }
+
+        600: on_attackLaunched
+            if at me and me -> Dodging, {result:0, block:true}
+
+        700: on_attackLaunched 
+            if at me and me -> Parrying, gain half wounds, emit counterattack
+
+tickEnded
+        1000: on_tickEnded
+            convert Wounds>Health to corpses or something

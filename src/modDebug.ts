@@ -31,7 +31,7 @@ export function loadMod(game: Game) {
         let destination = game.getById(path.path.to);
         let actor = game.getById(actorId);
         if (actor.player) {
-            game.newLine(`You go to ${destination.baseName}`);
+            game.newLine(`You go to ${destination.name}`);
         }
         game.queueEvent({
             type: "traverse",
@@ -64,19 +64,19 @@ export function loadMod(game: Game) {
     //     intents: () => {
     //         let intents = [];
     //         let durations = [
-    //             { baseName: "1 tick", dur: 1 },
-    //             { baseName: "3 ticks", dur: 3 },
-    //             { baseName: "6 ticks", dur: 6 },
-    //             // { baseName: "12 ticks", dur: 12 },
-    //             { baseName: "1 minute", dur: timing.m(1) },
-    //             { baseName: "1 hour", dur: timing.h(1) },
-    //             { baseName: "1 day", dur: timing.h(24) },
+    //             { name: "1 tick", dur: 1 },
+    //             { name: "3 ticks", dur: 3 },
+    //             { name: "6 ticks", dur: 6 },
+    //             // { name: "12 ticks", dur: 12 },
+    //             { name: "1 minute", dur: timing.m(1) },
+    //             { name: "1 hour", dur: timing.h(1) },
+    //             { name: "1 day", dur: timing.h(24) },
     //         ];
     //         for (let duration of durations) {
     //             let intent = {
     //                 representation: [
     //                     game.word("wait"),
-    //                     game.word(duration.baseName),
+    //                     game.word(duration.name),
     //                 ],
     //                 sequence: [
     //                     createNewLineAction(`You wait ${duration.dur} ticks.`),
