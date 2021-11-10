@@ -17,8 +17,30 @@ export function loadMod(game: GameModule.Game) {
 
     let devil = game.addEntity(makeDevil(), area);
     game.addEntity(
-        { quality: { name: "health", value: 10, pyramid: false } },
+        { quality: { name: "Health", value: 10, pyramid: false } },
         devil,
+        "quality"
+    );
+    game.addEntity(
+        { quality: { name: "Power", value: 6, pyramid: false } },
+        devil,
+        "quality"
+    );
+    // game.addEntity(
+    //     { quality: { name: "addPower", value: 4, pyramid: false } },
+    //     devil,
+    //     "quality"
+    // );
+    // game.addEntity(
+    //     { quality: { name: "mulPower", value: 4, pyramid: false } },
+    //     devil,
+    //     "quality"
+    // );
+
+    let knife = game.addEntity({ name: "knife" }, devil, "activeItem");
+    game.addEntity(
+        { quality: { name: "addPower", value: 4, pyramid: false } },
+        knife,
         "quality"
     );
 
@@ -29,18 +51,24 @@ export function loadMod(game: GameModule.Game) {
                 .intentless()
                 .filter((d) => d.name === "devil")) {
                 console.log(`setting intent for devil`);
-                if (Math.random() < 0.5) {
+                if (Math.random() < 1) {
+                    // get target
+                    let target = game.entities.filter((p) => p.player)[0];
+                    // get damage
+                    let damage = game.getTotalQuality(devil.id, "Power");
                     // strike
                     devil.actor.intent = {
                         sequence: [
                             {
-                                duration: 4,
+                                duration: 2,
                                 processText:
                                     "The devil is preparing to strike...",
                             },
                             {
                                 func: "newLine",
-                                args: ["The devil strikes you!"],
+                                args: [
+                                    `The devil strikes you for ${damage} damage!`,
+                                ],
                             },
                         ],
                     };

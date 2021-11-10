@@ -95,6 +95,58 @@ export class Game {
     }
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    // QUALITY
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+    getTotalQuality(entityId: number, qualityName: string) {
+        let acceptableLinks = ["activeItem", "attachment"];
+        let game = this;
+        function getQualitySubtree(
+            entityId: number,
+            baseQ = 0,
+            addQ = 0,
+            mulQ = 1
+        ) {
+            let entity = game.getById(entityId);
+            // check qualities
+            for (let quality of game
+                .getChildren(entity)
+                .filter((q) => q.quality)) {
+                if (quality.quality.name === qualityName) {
+                    baseQ = quality.quality.value;
+                } else if (quality.quality.name === `add${qualityName}`) {
+                    addQ += quality.quality.value;
+                } else if (quality.quality.name === `mul${qualityName}`) {
+                    mulQ *= quality.quality.value;
+                }
+            }
+            for (let child of game.getChildren(entity)) {
+                // if acceptable link
+                if (acceptableLinks.indexOf(child.rel) != -1) {
+                    let subtree = getQualitySubtree(
+                        child.id,
+                        baseQ,
+                        addQ,
+                        mulQ
+                    );
+                    baseQ = subtree.baseQ;
+                    addQ += subtree.addQ;
+                    mulQ *= subtree.mulQ;
+                }
+            }
+            return {
+                baseQ,
+                addQ,
+                mulQ,
+            };
+        }
+        let pack = getQualitySubtree(entityId);
+        let { baseQ, addQ, mulQ } = pack;
+        console.log({ qualityName, baseQ, addQ, mulQ });
+        return (baseQ + addQ) * mulQ;
+    }
+
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     // PARENT
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -232,13 +284,10 @@ export class Game {
                 progressBar: progressBar,
                 alignLeft: playerId === action.actor,
             };
-            console.log({ playerId, actorId: action.actor });
         }
     }
 
     updateLog() {
-        console.log({ history: this.history, log: this.log });
-
         // clear display
         let display = document.getElementById("display");
         display.innerText = "";
@@ -246,11 +295,10 @@ export class Game {
             this.updateLogItem(i);
             // update UI at i
             if (this.log[i]) {
-                console.log(`i${i} text: ${this.log[i].text}`);
                 let logItem = this.log[i];
                 let node = document.createElement("div");
                 node.id = `logItem${logItem.id}`;
-                node.innerText += "\n text:" + logItem.text;
+                node.innerText += "\n" + logItem.text;
                 node.innerText += "\n" + logItem.progressBar;
                 node.style.textAlign = logItem.alignLeft ? "left" : "right";
                 display.appendChild(node);
@@ -275,7 +323,6 @@ export class Game {
     getPlayerIntent() {
         if (this.player) {
             if (!this.player.actor.intent) {
-                console.log("no player intent");
                 // lay out options if necessary
                 if (!this.player.picking) {
                     this.player.picking = true;
@@ -318,7 +365,6 @@ export class Game {
         // get this tick's Actions {aedpcs} for every entity with intent (null or Intent)
         this.intentsReady = true;
         for (let entity of this.entities.filter((e) => e.actor)) {
-            console.log({ actor: entity.actor });
             let intent = entity.actor.intent;
             // empty intent
             if (!intent) {
@@ -395,8 +441,9 @@ export class Game {
                     let type = event.type;
                     // send to every handler
                     let responses = this.emitEvent(event);
-                    console.log({ event, i: this.queueSpliceI });
-                    console.log({ responses });
+                    // TODO: blocking and response collection
+                    false && console.log({ event, i: this.queueSpliceI });
+                    false && console.log({ responses });
                 }
             }
             // pause: execute the next instantly or with pause
@@ -560,4 +607,3 @@ export class Game {
 //         ["has", { spout: true }],
 //     ]
 // );
-// console.log(g.entities);

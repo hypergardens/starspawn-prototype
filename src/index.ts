@@ -51,7 +51,7 @@ game.addEntity({
 
 game.addEntity(player, areaA);
 game.addEntity(
-    { quality: { name: "health", value: 10, pyramid: false } },
+    { quality: { name: "Health", value: 10, pyramid: false } },
     player,
     "quality"
 );

@@ -72,6 +72,53 @@ var Game = /** @class */ (function () {
         return this.entities.filter(function (e) { return e.actor && e.actor.intent === null; });
     };
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    // QUALITY
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    Game.prototype.getTotalQuality = function (entityId, qualityName) {
+        var acceptableLinks = ["activeItem", "attachment"];
+        var game = this;
+        function getQualitySubtree(entityId, baseQ, addQ, mulQ) {
+            if (baseQ === void 0) { baseQ = 0; }
+            if (addQ === void 0) { addQ = 0; }
+            if (mulQ === void 0) { mulQ = 1; }
+            var entity = game.getById(entityId);
+            // check qualities
+            for (var _i = 0, _a = game
+                .getChildren(entity)
+                .filter(function (q) { return q.quality; }); _i < _a.length; _i++) {
+                var quality = _a[_i];
+                if (quality.quality.name === qualityName) {
+                    baseQ = quality.quality.value;
+                }
+                else if (quality.quality.name === "add" + qualityName) {
+                    addQ += quality.quality.value;
+                }
+                else if (quality.quality.name === "mul" + qualityName) {
+                    mulQ *= quality.quality.value;
+                }
+            }
+            for (var _b = 0, _c = game.getChildren(entity); _b < _c.length; _b++) {
+                var child = _c[_b];
+                // if acceptable link
+                if (acceptableLinks.indexOf(child.rel) != -1) {
+                    var subtree = getQualitySubtree(child.id, baseQ, addQ, mulQ);
+                    baseQ = subtree.baseQ;
+                    addQ += subtree.addQ;
+                    mulQ *= subtree.mulQ;
+                }
+            }
+            return {
+                baseQ: baseQ,
+                addQ: addQ,
+                mulQ: mulQ,
+            };
+        }
+        var pack = getQualitySubtree(entityId);
+        var baseQ = pack.baseQ, addQ = pack.addQ, mulQ = pack.mulQ;
+        console.log({ qualityName: qualityName, baseQ: baseQ, addQ: addQ, mulQ: mulQ });
+        return (baseQ + addQ) * mulQ;
+    };
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     // PARENT
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     Game.prototype.setParent = function (parentEntity, childEntity, rel) {
@@ -193,11 +240,9 @@ var Game = /** @class */ (function () {
                 progressBar: progressBar,
                 alignLeft: playerId === action.actor,
             };
-            console.log({ playerId: playerId, actorId: action.actor });
         }
     };
     Game.prototype.updateLog = function () {
-        console.log({ history: this.history, log: this.log });
         // clear display
         var display = document.getElementById("display");
         display.innerText = "";
@@ -205,11 +250,10 @@ var Game = /** @class */ (function () {
             this.updateLogItem(i);
             // update UI at i
             if (this.log[i]) {
-                console.log("i" + i + " text: " + this.log[i].text);
                 var logItem = this.log[i];
                 var node_1 = document.createElement("div");
                 node_1.id = "logItem" + logItem.id;
-                node_1.innerText += "\n text:" + logItem.text;
+                node_1.innerText += "\n" + logItem.text;
                 node_1.innerText += "\n" + logItem.progressBar;
                 node_1.style.textAlign = logItem.alignLeft ? "left" : "right";
                 display.appendChild(node_1);
@@ -233,7 +277,6 @@ var Game = /** @class */ (function () {
         var _this = this;
         if (this.player) {
             if (!this.player.actor.intent) {
-                console.log("no player intent");
                 // lay out options if necessary
                 if (!this.player.picking) {
                     this.player.picking = true;
@@ -276,7 +319,6 @@ var Game = /** @class */ (function () {
         this.intentsReady = true;
         for (var _i = 0, _a = this.entities.filter(function (e) { return e.actor; }); _i < _a.length; _i++) {
             var entity = _a[_i];
-            console.log({ actor: entity.actor });
             var intent = entity.actor.intent;
             // empty intent
             if (!intent) {
@@ -354,8 +396,9 @@ var Game = /** @class */ (function () {
                     var type = event_1.type;
                     // send to every handler
                     var responses = this.emitEvent(event_1);
-                    console.log({ event: event_1, i: this.queueSpliceI });
-                    console.log({ responses: responses });
+                    // TODO: blocking and response collection
+                     false && 0;
+                     false && 0;
                 }
             }
             // pause: execute the next instantly or with pause
@@ -505,7 +548,6 @@ exports.Game = Game;
 //         ["has", { spout: true }],
 //     ]
 // );
-// console.log(g.entities);
 
 
 /***/ }),
@@ -1010,7 +1052,20 @@ function loadMod(game) {
     };
     console.log("loading mod fight");
     var devil = game.addEntity(makeDevil(), area);
-    game.addEntity({ quality: { name: "health", value: 10, pyramid: false } }, devil, "quality");
+    game.addEntity({ quality: { name: "Health", value: 10, pyramid: false } }, devil, "quality");
+    game.addEntity({ quality: { name: "Power", value: 6, pyramid: false } }, devil, "quality");
+    // game.addEntity(
+    //     { quality: { name: "addPower", value: 4, pyramid: false } },
+    //     devil,
+    //     "quality"
+    // );
+    // game.addEntity(
+    //     { quality: { name: "mulPower", value: 4, pyramid: false } },
+    //     devil,
+    //     "quality"
+    // );
+    var knife = game.addEntity({ name: "knife" }, devil, "activeItem");
+    game.addEntity({ quality: { name: "addPower", value: 4, pyramid: false } }, knife, "quality");
     // devils with no intent will do a 6-tick dance
     game.addHandler(0, {
         on_getIntents: function () {
@@ -1019,17 +1074,23 @@ function loadMod(game) {
                 .filter(function (d) { return d.name === "devil"; }); _i < _a.length; _i++) {
                 var devil_1 = _a[_i];
                 console.log("setting intent for devil");
-                if (Math.random() < 0.5) {
+                if (Math.random() < 1) {
+                    // get target
+                    var target = game.entities.filter(function (p) { return p.player; })[0];
+                    // get damage
+                    var damage = game.getTotalQuality(devil_1.id, "Power");
                     // strike
                     devil_1.actor.intent = {
                         sequence: [
                             {
-                                duration: 4,
+                                duration: 2,
                                 processText: "The devil is preparing to strike...",
                             },
                             {
                                 func: "newLine",
-                                args: ["The devil strikes you!"],
+                                args: [
+                                    "The devil strikes you for " + damage + " damage!",
+                                ],
                             },
                         ],
                     };
@@ -1168,7 +1229,7 @@ game.addEntity({
     },
 });
 game.addEntity(player, areaA);
-game.addEntity({ quality: { name: "health", value: 10, pyramid: false } }, player, "quality");
+game.addEntity({ quality: { name: "Health", value: 10, pyramid: false } }, player, "quality");
 // teaRoomMod.loadMod(game);
 debugMod.loadMod(game);
 fightingMod.loadMod(game);
