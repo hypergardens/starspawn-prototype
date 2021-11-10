@@ -88,7 +88,7 @@ Player
         onDamageDealt(n) -> {
             func: "healActor",
             args: [n/2],
-            signals: ["onHealed,lifesteal,actor,n/2"]
+            events: ["onHealed,lifesteal,actor,n/2"]
 
     weapon:
         types: {
@@ -129,7 +129,7 @@ Player
                     createWait("strike", weapon.speed * getTotal("MulSpeed"))
                 },
                 {
-                    signals: [{type:"Attacked", from:attacker, to:defender, damage}],
+                    events: [{type:"Attacked", from:attacker, to:defender, damage}],
                     pause: 300
                 }
             ]

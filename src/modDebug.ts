@@ -142,7 +142,7 @@ export function loadMod(game: Game) {
         },
     });
 
-    game.addHandler(0, {
+    game.addHandler(100, {
         on_ping: function (data) {
             game.enqueue({
                 func: "newLine",
@@ -153,7 +153,7 @@ export function loadMod(game: Game) {
         },
     });
 
-    game.addHandler(0, {
+    game.addHandler(99, {
         on_pong: function (data) {
             game.enqueue({
                 func: "newLine",
@@ -222,8 +222,8 @@ export function loadMod(game: Game) {
             let intents = [];
             // the sequence
             intents.push({
-                representation: [game.word("DEBUG"), game.word("wait 3 ticks")],
-                sequence: [createWaitAction(3)],
+                representation: [game.word("wait 5 ticks")],
+                sequence: [createWaitAction(5)],
             });
             return intents;
         },

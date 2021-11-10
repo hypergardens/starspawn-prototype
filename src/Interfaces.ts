@@ -56,13 +56,13 @@ export interface Entity {
         distance: number;
     };
 
-    // PLAYER
     actor?: {
         intent: {
-            representation?: any[];
-            sequence: any[];
+            representation?: Entity[];
+            sequence: Action[];
         };
     };
+    // PLAYER
     setOptionsUI?: any;
     getNextWords?: any;
     pickNextWord?: any;
@@ -80,7 +80,7 @@ export interface Event {
     from?: Entity;
     to?: Entity;
     // DamageDealt
-    amount?: number;
+    damage?: number;
 }
 
 export interface Action {
@@ -88,7 +88,7 @@ export interface Action {
     args?: any[];
     duration?: number;
     pause?: number;
-    signals?: Event[];
+    events?: Event[];
     tags?: any;
     processText?: string;
     // computed

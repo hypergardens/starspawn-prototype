@@ -86,6 +86,7 @@ console.log({ "all intents": player.getAllIntents() });
 // for (let intent of player.getAllIntents()) {
 //     console.log({ intent })
 // }
+console.log(game.handlers);
 
 function debugText(text) {
     document.getElementById("debug").innerText = text;

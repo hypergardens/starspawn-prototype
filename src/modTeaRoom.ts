@@ -532,7 +532,7 @@ export function loadMod(game: GameModule.Game) {
             type: "damageDealt",
             from: attacker,
             to: target,
-            amount: 2,
+            damage: 2,
         });
     };
 

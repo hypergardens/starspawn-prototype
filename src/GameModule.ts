@@ -227,6 +227,8 @@ export class Game {
                 responses.push(handler[`on_${data.type}`](data));
             }
         }
+        console.log("emitting");
+        console.log({ data });
         return responses;
     }
 
@@ -262,15 +264,17 @@ export class Game {
             let action = this.history[logId];
             // compute sticky and progressBar
             let sticky: boolean, progressBar: string;
+            let inProgress = false;
             if (action.duration && action.duration >= 0) {
+                inProgress = true;
                 progressBar = `[${
                     "=".repeat(action.maxDuration - action.duration) +
                     "-".repeat(action.duration)
-                }] ${action.processText ? action.processText : ""}`;
+                }]`;
                 sticky = true;
             } else {
                 if (action.maxDuration > 0) {
-                    progressBar = `[${"=".repeat(action.maxDuration)}]`;
+                    progressBar = `[${"X".repeat(action.maxDuration)}]`;
                 } else {
                     progressBar = ``;
                 }
@@ -279,7 +283,8 @@ export class Game {
 
             this.log[logId] = {
                 id: logId,
-                text: action.processText ? action.processText : "",
+                text:
+                    inProgress && action.processText ? action.processText : "",
                 sticky: sticky,
                 progressBar: progressBar,
                 alignLeft: playerId === action.actor,
@@ -384,21 +389,26 @@ export class Game {
                     );
                     let action = intent.sequence[0];
                     this.enqueue(action, false);
+                    // // propagate events
+                    // if (action.events) {
+                    //     for (let event of action.events) {
+                    //         this.queueEvent(event);
+                    //     }
+                    // }
 
                     // queue up actions including the first with duration
                     if (action.duration <= 0 || action.duration === undefined) {
                         // instant action, keep queueSplicing
                         intent.sequence.splice(0, 1);
-                    } else if (action.duration > 0) {
-                        // action that will be taken multiple times
-                        ticks = action.duration;
+                    } else if (action.duration <= 1) {
                         // end actions here
-                        if (action.duration <= 1) {
-                            intent.sequence.splice(0, 1);
-                        }
+                        intent.sequence.splice(0, 1);
                         action.duration -= 1;
+                        ticks = action.duration;
                     } else {
-                        // throw `Not sure what this means`;
+                        // action that will be taken multiple times
+                        action.duration -= 1;
+                        ticks = action.duration;
                     }
                 }
                 // if the last action was extracted, render null

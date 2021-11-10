@@ -1,7 +1,7 @@
 import * as timing from "./timing";
 import * as GameModule from "./GameModule";
 
-import { Entity, Action } from "./Interfaces";
+import { Entity, Action, Event } from "./Interfaces";
 import { Player } from "./PlayerModule";
 
 function makeDevil(): Entity {
@@ -45,7 +45,8 @@ export function loadMod(game: GameModule.Game) {
     );
 
     // devils with no intent will do a 6-tick dance
-    game.addHandler(0, {
+    game.addHandler(5, {
+        name: "devil AI handler",
         on_getIntents: () => {
             for (let devil of game
                 .intentless()
@@ -56,18 +57,27 @@ export function loadMod(game: GameModule.Game) {
                     let target = game.entities.filter((p) => p.player)[0];
                     // get damage
                     let damage = game.getTotalQuality(devil.id, "Power");
+
                     // strike
                     devil.actor.intent = {
                         sequence: [
                             {
-                                duration: 2,
+                                duration: 5,
                                 processText:
                                     "The devil is preparing to strike...",
                             },
                             {
                                 func: "newLine",
                                 args: [
-                                    `The devil strikes you for ${damage} damage!`,
+                                    `The devil strikes at you for ${damage} damage!`,
+                                ],
+                                events: [
+                                    {
+                                        type: "AttackBegin",
+                                        from: devil,
+                                        to: target,
+                                        damage: damage,
+                                    },
                                 ],
                             },
                         ],
@@ -88,6 +98,19 @@ export function loadMod(game: GameModule.Game) {
                     };
                 }
             }
+        },
+    });
+
+    game.addHandler(0, {
+        name: "get hit handler",
+        on_AttackBegin: function (event: Event) {
+            console.log("Ouch.");
+            game
+                .getChildren(event.to)
+                .filter(
+                    (q) => q.quality && q.quality.name === "Health"
+                )[0].quality.value -= event.damage;
+            game.newLine(`You take ${event.damage} damage!`);
         },
     });
 }

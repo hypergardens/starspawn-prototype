@@ -109,7 +109,7 @@ Player
         damage == 50
 
         return {
-            signals: ["Attacked", attacker, defender, damage, damage.type]
+            events: ["Attacked", attacker, defender, damage, damage.type]
             pause: 300
         }
 

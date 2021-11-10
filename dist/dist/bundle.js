@@ -189,6 +189,8 @@ var Game = /** @class */ (function () {
                 responses.push(handler["on_" + data.type](data));
             }
         }
+        console.log("emitting");
+        console.log({ data: data });
         return responses;
     };
     Game.prototype.queueEvent = function (data) {
@@ -219,14 +221,16 @@ var Game = /** @class */ (function () {
             var action = this.history[logId];
             // compute sticky and progressBar
             var sticky = void 0, progressBar = void 0;
+            var inProgress = false;
             if (action.duration && action.duration >= 0) {
+                inProgress = true;
                 progressBar = "[" + ("=".repeat(action.maxDuration - action.duration) +
-                    "-".repeat(action.duration)) + "] " + (action.processText ? action.processText : "");
+                    "-".repeat(action.duration)) + "]";
                 sticky = true;
             }
             else {
                 if (action.maxDuration > 0) {
-                    progressBar = "[" + "=".repeat(action.maxDuration) + "]";
+                    progressBar = "[" + "X".repeat(action.maxDuration) + "]";
                 }
                 else {
                     progressBar = "";
@@ -235,7 +239,7 @@ var Game = /** @class */ (function () {
             }
             this.log[logId] = {
                 id: logId,
-                text: action.processText ? action.processText : "",
+                text: inProgress && action.processText ? action.processText : "",
                 sticky: sticky,
                 progressBar: progressBar,
                 alignLeft: playerId === action.actor,
@@ -335,22 +339,27 @@ var Game = /** @class */ (function () {
                     intent.sequence[0] = this.processAction(intent.sequence[0], entity);
                     var action = intent.sequence[0];
                     this.enqueue(action, false);
+                    // // propagate events
+                    // if (action.events) {
+                    //     for (let event of action.events) {
+                    //         this.queueEvent(event);
+                    //     }
+                    // }
                     // queue up actions including the first with duration
                     if (action.duration <= 0 || action.duration === undefined) {
                         // instant action, keep queueSplicing
                         intent.sequence.splice(0, 1);
                     }
-                    else if (action.duration > 0) {
-                        // action that will be taken multiple times
-                        ticks = action.duration;
+                    else if (action.duration <= 1) {
                         // end actions here
-                        if (action.duration <= 1) {
-                            intent.sequence.splice(0, 1);
-                        }
+                        intent.sequence.splice(0, 1);
                         action.duration -= 1;
+                        ticks = action.duration;
                     }
                     else {
-                        // throw `Not sure what this means`;
+                        // action that will be taken multiple times
+                        action.duration -= 1;
+                        ticks = action.duration;
                     }
                 }
                 // if the last action was extracted, render null
@@ -924,7 +933,7 @@ function loadMod(game) {
             return intents;
         },
     });
-    game.addHandler(0, {
+    game.addHandler(100, {
         on_ping: function (data) {
             game.enqueue({
                 func: "newLine",
@@ -934,7 +943,7 @@ function loadMod(game) {
             });
         },
     });
-    game.addHandler(0, {
+    game.addHandler(99, {
         on_pong: function (data) {
             game.enqueue({
                 func: "newLine",
@@ -999,8 +1008,8 @@ function loadMod(game) {
             var intents = [];
             // the sequence
             intents.push({
-                representation: [game.word("DEBUG"), game.word("wait 3 ticks")],
-                sequence: [createWaitAction(3)],
+                representation: [game.word("wait 5 ticks")],
+                sequence: [createWaitAction(5)],
             });
             return intents;
         },
@@ -1067,7 +1076,8 @@ function loadMod(game) {
     var knife = game.addEntity({ name: "knife" }, devil, "activeItem");
     game.addEntity({ quality: { name: "addPower", value: 4, pyramid: false } }, knife, "quality");
     // devils with no intent will do a 6-tick dance
-    game.addHandler(0, {
+    game.addHandler(5, {
+        name: "devil AI handler",
         on_getIntents: function () {
             for (var _i = 0, _a = game
                 .intentless()
@@ -1083,13 +1093,21 @@ function loadMod(game) {
                     devil_1.actor.intent = {
                         sequence: [
                             {
-                                duration: 2,
+                                duration: 5,
                                 processText: "The devil is preparing to strike...",
                             },
                             {
                                 func: "newLine",
                                 args: [
-                                    "The devil strikes you for " + damage + " damage!",
+                                    "The devil strikes at you for " + damage + " damage!",
+                                ],
+                                events: [
+                                    {
+                                        type: "AttackBegin",
+                                        from: devil_1,
+                                        to: target,
+                                        damage: damage,
+                                    },
                                 ],
                             },
                         ],
@@ -1111,6 +1129,16 @@ function loadMod(game) {
                     };
                 }
             }
+        },
+    });
+    game.addHandler(0, {
+        name: "get hit handler",
+        on_AttackBegin: function (event) {
+            console.log("Ouch.");
+            game
+                .getChildren(event.to)
+                .filter(function (q) { return q.quality && q.quality.name === "Health"; })[0].quality.value -= event.damage;
+            game.newLine("You take " + event.damage + " damage!");
         },
     });
 }
@@ -1253,6 +1281,7 @@ console.log({ "all intents": player.getAllIntents() });
 // for (let intent of player.getAllIntents()) {
 //     console.log({ intent })
 // }
+console.log(game.handlers);
 function debugText(text) {
     document.getElementById("debug").innerText = text;
 }

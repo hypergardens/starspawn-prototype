@@ -12,7 +12,7 @@ Action
     ? args: value[] 
     ? duration: number
     ? pause: number
-    ? signals: Signal[]
+    ? events: Signal[]
     ? processText: string
 
     c: maxDuration: number
