@@ -1,5 +1,7 @@
+import { TextNode } from "./TextNode";
+
 export interface LogItem {
-    text: string;
+    textNodes: TextNode[];
     alignLeft: boolean;
     id: number;
     progressBar?: string;

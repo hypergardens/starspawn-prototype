@@ -14,6 +14,7 @@ Object.defineProperty(exports, "__esModule", ({ value: true }));
 // let timing = require("./timing");
 var timing = __webpack_require__(/*! ./timing */ "./src/timing.ts");
 var PriorityQueue_1 = __webpack_require__(/*! ./PriorityQueue */ "./src/PriorityQueue.ts");
+var TextNode_1 = __webpack_require__(/*! ./TextNode */ "./src/TextNode.ts");
 var Game = /** @class */ (function () {
     function Game() {
         this.id = 0;
@@ -211,6 +212,7 @@ var Game = /** @class */ (function () {
         return action;
     };
     Game.prototype.updateLogItem = function (logId) {
+        // hack; update for text nodes
         var playerId = this.entities.filter(function (e) { return e.player; })[0].id;
         // if no action at id, leave alone
         if (!this.history[logId]) {
@@ -239,7 +241,11 @@ var Game = /** @class */ (function () {
             }
             this.log[logId] = {
                 id: logId,
-                text: inProgress && action.processText ? action.processText : "",
+                textNodes: [
+                    TextNode_1.createTextNode(inProgress && action.processText
+                        ? action.processText
+                        : ""),
+                ],
                 sticky: sticky,
                 progressBar: progressBar,
                 alignLeft: playerId === action.actor,
@@ -255,20 +261,61 @@ var Game = /** @class */ (function () {
             // update UI at i
             if (this.log[i]) {
                 var logItem = this.log[i];
-                var node_1 = document.createElement("div");
-                node_1.id = "logItem" + logItem.id;
-                node_1.innerText += "\n" + logItem.text;
-                node_1.innerText += "\n" + logItem.progressBar;
-                node_1.style.textAlign = logItem.alignLeft ? "left" : "right";
-                display.appendChild(node_1);
+                var node = document.createElement("div");
+                node.id = "logItem" + logItem.id;
+                for (var _i = 0, _a = logItem.textNodes; _i < _a.length; _i++) {
+                    var textNode = _a[_i];
+                    var textBit = document.createElement("span");
+                    // do not change it
+                    // it is cursed
+                    // if you want to change things
+                    // change them elsewhere
+                    if (textNode.foreground) {
+                        textBit.style.color = textNode.foreground;
+                    }
+                    if (textNode.background) {
+                        textBit.style.backgroundColor = textNode.background;
+                    }
+                    display.appendChild(textBit);
+                    textBit.innerText = "" + textNode.text;
+                    console.log(textBit.style);
+                    console.log(textBit);
+                    // textBit.style = "color: #c02537 !important;";
+                    // node.appendChild(textBit);
+                    // node.innerHTML +=
+                    // `<br>` +
+                    // `<a style="background:red">${textNode.text}</a>`;
+                }
+                node.innerText += "\n" + logItem.progressBar;
+                node.style.textAlign = logItem.alignLeft ? "left" : "right";
+                display.appendChild(node);
                 display.scrollTop = display.scrollHeight;
             }
         }
     };
-    Game.prototype.newLine = function (text) {
+    Game.prototype.newLine = function () {
+        var args = [];
+        for (var _i = 0; _i < arguments.length; _i++) {
+            args[_i] = arguments[_i];
+        }
         this.logId += 1;
+        var textNodes = [];
+        for (var _a = 0, args_1 = args; _a < args_1.length; _a++) {
+            var arg = args_1[_a];
+            if (typeof arg === "string") {
+                var defaultTextNode = {
+                    // background: "cyan",
+                    // foreground: "--offblack",
+                    text: arg,
+                };
+                textNodes.push(defaultTextNode);
+            }
+            else {
+                textNodes.push(arg);
+            }
+        }
         var logItem = {
-            text: "" + text,
+            textNodes: textNodes,
             id: this.logId,
             alignLeft: true,
             sticky: false,
@@ -465,7 +512,7 @@ var Game = /** @class */ (function () {
                 text = "" + entity.name;
             }
             // assemble text chunk
-            var textNode = document.createElement("a");
+            var textNode = document.createElement("span");
             textNode.innerText = "|" + "----".repeat(depth) + " " + text + " " + focusedText + "\n";
             textNode.className = "treeObject";
             if (game.getChildren(entity).length > 0) {
@@ -793,6 +840,28 @@ exports.PriorityQueue = PriorityQueue;
 
 /***/ }),
 
+/***/ "./src/TextNode.ts":
+/*!*************************!*\
+  !*** ./src/TextNode.ts ***!
+  \*************************/
+/***/ ((__unused_webpack_module, exports) => {
+
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+function createTextNode(text, background, foreground) {
+    if (background === void 0) { background = null; }
+    if (foreground === void 0) { foreground = null; }
+    return {
+        text: text,
+        background: background,
+        foreground: foreground,
+    };
+}
+exports.createTextNode = createTextNode;
+
+
+/***/ }),
+
 /***/ "./src/modDebug.ts":
 /*!*************************!*\
   !*** ./src/modDebug.ts ***!
@@ -1099,7 +1168,15 @@ function loadMod(game) {
                             {
                                 func: "newLine",
                                 args: [
-                                    "The devil strikes at you for " + damage + " damage!",
+                                    "The devil ",
+                                    { text: "strikes", foreground: "orange" },
+                                    " at you for ",
+                                    {
+                                        text: damage + " damage",
+                                        // foreground: "",
+                                        background: "gray",
+                                    },
+                                    "!",
                                 ],
                                 events: [
                                     {

@@ -69,7 +69,15 @@ export function loadMod(game: GameModule.Game) {
                             {
                                 func: "newLine",
                                 args: [
-                                    `The devil strikes at you for ${damage} damage!`,
+                                    `The devil `,
+                                    { text: `strikes`, foreground: "orange" },
+                                    ` at you for `,
+                                    {
+                                        text: `${damage} damage`,
+                                        // foreground: "",
+                                        background: "gray",
+                                    },
+                                    `!`,
                                 ],
                                 events: [
                                     {

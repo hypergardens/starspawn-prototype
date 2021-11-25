@@ -5,7 +5,7 @@ import { Entity, Action, Event } from "./Interfaces";
 import { PriorityQueue } from "./PriorityQueue";
 import { Player } from "./PlayerModule";
 import { LogItem } from "./LogItem";
-import { node, RuntimeGlobals } from "webpack";
+import { createTextNode, TextNode } from "./TextNode";
 
 export class Game {
     id: number;
@@ -254,7 +254,8 @@ export class Game {
         return action;
     }
 
-    updateLogItem(logId: number) {
+    updateLogItem(logId: number): LogItem {
+        // hack; update for text nodes
         let playerId = this.entities.filter((e) => e.player)[0].id;
         // if no action at id, leave alone
         if (!this.history[logId]) {
@@ -283,8 +284,13 @@ export class Game {
 
             this.log[logId] = {
                 id: logId,
-                text:
-                    inProgress && action.processText ? action.processText : "",
+                textNodes: [
+                    createTextNode(
+                        inProgress && action.processText
+                            ? action.processText
+                            : ""
+                    ),
+                ],
                 sticky: sticky,
                 progressBar: progressBar,
                 alignLeft: playerId === action.actor,
@@ -303,7 +309,30 @@ export class Game {
                 let logItem = this.log[i];
                 let node = document.createElement("div");
                 node.id = `logItem${logItem.id}`;
-                node.innerText += "\n" + logItem.text;
+                for (let textNode of logItem.textNodes) {
+                    let textBit = document.createElement("span");
+
+                    // do not change it
+                    // it is cursed
+                    // if you want to change things
+                    // change them elsewhere
+                    if (textNode.foreground) {
+                        textBit.style.color = textNode.foreground;
+                    }
+                    if (textNode.background) {
+                        textBit.style.backgroundColor = textNode.background;
+                    }
+                    display.appendChild(textBit);
+                    textBit.innerText = `${textNode.text}`;
+                    console.log(textBit.style);
+                    console.log(textBit);
+
+                    // textBit.style = "color: #c02537 !important;";
+                    // node.appendChild(textBit);
+                    // node.innerHTML +=
+                    // `<br>` +
+                    // `<a style="background:red">${textNode.text}</a>`;
+                }
                 node.innerText += "\n" + logItem.progressBar;
                 node.style.textAlign = logItem.alignLeft ? "left" : "right";
                 display.appendChild(node);
@@ -312,10 +341,23 @@ export class Game {
         }
     }
 
-    newLine(text: string): LogItem {
+    newLine(...args: (string | TextNode)[]): LogItem {
         this.logId += 1;
+        let textNodes = [];
+        for (let arg of args) {
+            if (typeof arg === "string") {
+                let defaultTextNode = {
+                    // background: "cyan",
+                    // foreground: "--offblack",
+                    text: arg,
+                };
+                textNodes.push(defaultTextNode);
+            } else {
+                textNodes.push(arg);
+            }
+        }
         let logItem = {
-            text: `${text}`,
+            textNodes: textNodes,
             id: this.logId,
             alignLeft: true,
             sticky: false,
@@ -515,7 +557,7 @@ export class Game {
             }
 
             // assemble text chunk
-            let textNode = document.createElement("a");
+            let textNode = document.createElement("span");
             textNode.innerText = `|${"----".repeat(
                 depth
             )} ${text} ${focusedText}\n`;
